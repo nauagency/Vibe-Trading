@@ -130,15 +130,17 @@
   "financialEvents": {
     "badge": "Read-only data · no orders",
     "title": "Financial events",
+    "boardLabel": "Market Events",
     "subtitle": "A market-impact feed for XAU, BTC, USOIL, EURUSD, and macro context, running directly inside Vibe-Trading.",
     "refresh": "Refresh",
     "error": "Cannot load financial events.",
     "provider": "Aggregated source: {{provider}}",
     "priority": "Priority: {{provider}}",
     "prioritySource": "Priority source",
+    "impact": { "high": "High", "medium": "Medium", "low": "Low", "holiday": "Holiday" },
     "native": "Standalone",
     "originalTitle": "Original market board",
-    "originalHint": "The four AI-Trader categories are preserved, but Vibe-Trading now fetches and renders them independently.",
+    "originalHint": "Four core market categories are collected and displayed directly by Vibe-Trading.",
     "assetsTitle": "Focus markets",
     "assetsHint": "News and economic-calendar events are classified for XAU, BTC, USOIL, and EURUSD.",
     "sections": {

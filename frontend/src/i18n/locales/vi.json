@@ -130,15 +130,17 @@
   "financialEvents": {
     "badge": "Dữ liệu chỉ đọc · không đặt lệnh",
     "title": "Sự kiện tài chính",
+    "boardLabel": "Sự kiện thị trường",
     "subtitle": "Bảng tin tác động thị trường cho XAU, BTC, USOIL, EURUSD và vĩ mô, chạy trực tiếp trong Vibe-Trading.",
     "refresh": "Làm mới",
     "error": "Không thể tải sự kiện tài chính.",
     "provider": "Nguồn tổng hợp: {{provider}}",
     "priority": "Ưu tiên: {{provider}}",
     "prioritySource": "Nguồn ưu tiên",
+    "impact": { "high": "Cao", "medium": "Trung bình", "low": "Thấp", "holiday": "Ngày nghỉ" },
     "native": "Chạy độc lập",
     "originalTitle": "Bảng dữ liệu gốc",
-    "originalHint": "Giữ bốn nhóm của AI-Trader nhưng được Vibe-Trading lấy và hiển thị độc lập.",
+    "originalHint": "Bốn nhóm thị trường cốt lõi được Vibe-Trading trực tiếp thu thập và hiển thị.",
     "assetsTitle": "Theo dõi thị trường trọng tâm",
     "assetsHint": "Tin và lịch kinh tế được phân loại riêng cho XAU, BTC, USOIL và EURUSD.",
     "sections": {

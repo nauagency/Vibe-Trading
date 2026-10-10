@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, ExternalLink, Loader2, Newspaper, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ExternalLink, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api, type FinancialEventFeed, type FinancialEventsDashboard } from "@/lib/api";
 
-function formatTime(value: string) {
+function formatTime(value: string, locale: string) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, {
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
 }
 
 export function FinancialEvents() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale: "vi" | "en" = i18n.resolvedLanguage?.toLowerCase().startsWith("vi") ? "vi" : "en";
   const [data, setData] = useState<FinancialEventsDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +22,7 @@ export function FinancialEvents() {
     setLoading(true);
     setError(null);
     try {
-      setData(await api.getFinancialEvents());
+      setData(await api.getFinancialEvents(locale));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t("financialEvents.error"));
     } finally {
@@ -29,7 +30,7 @@ export function FinancialEvents() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [locale]);
 
   const sectionTitles: Record<string, string> = {
     "macro-signals": t("financialEvents.sections.macro-signals"),
@@ -57,12 +58,6 @@ export function FinancialEvents() {
       {loading && !data ? <div className="flex h-56 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : null}
 
       {data ? <>
-        <section className="grid gap-3 rounded-xl border border-primary/20 bg-primary/[0.03] p-4 md:grid-cols-[auto_1fr_auto] md:items-center">
-          <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary"><Newspaper className="h-5 w-5" /></div>
-          <div><div className="font-medium">Vibe-Trading · Market Events</div><p className="mt-1 text-xs text-muted-foreground">{t("financialEvents.provider", { provider: data.provider })} · {t("financialEvents.priority", { provider: data.priority_provider })}</p></div>
-          <span className="w-fit rounded-full bg-positive/10 px-3 py-1 text-xs font-medium text-positive">{t("financialEvents.native")}</span>
-        </section>
-
         <div><h2 className="text-xl font-semibold">{t("financialEvents.originalTitle")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("financialEvents.originalHint")}</p></div>
         <EventGrid feeds={data.sections} title={(feed) => sectionTitles[feed.id] ?? feed.label} />
 
@@ -76,14 +71,15 @@ export function FinancialEvents() {
 }
 
 function EventGrid({ feeds, title }: { feeds: FinancialEventFeed[]; title?: (feed: FinancialEventFeed) => string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.resolvedLanguage?.toLowerCase().startsWith("vi") ? "vi-VN" : "en-US";
   return <section className="grid gap-4 xl:grid-cols-2">
     {feeds.map((feed) => <article key={feed.id} className="overflow-hidden rounded-xl border bg-card">
       <div className="flex items-center justify-between border-b p-5"><h2 className="font-semibold">{title ? title(feed) : feed.label}</h2><span className="text-xs text-muted-foreground">{t("financialEvents.itemCount", { count: feed.items.length })}</span></div>
       <div className="divide-y">
         {feed.items.length ? feed.items.map((item, index) => <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="block p-5 transition-colors hover:bg-muted/30">
-          <div className="flex items-start justify-between gap-3"><div><div className="mb-1 flex flex-wrap gap-1.5">{item.source === "Forex Factory" ? <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">{t("financialEvents.prioritySource")}</span> : null}{item.country ? <span className="rounded-full bg-muted px-2 py-0.5 text-[10px]">{item.country}</span> : null}{item.impact ? <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] text-warning">{item.impact}</span> : null}</div><h3 className="font-medium leading-6">{item.title}</h3></div><ExternalLink className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" /></div>
-          <div className="mt-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground"><span>{item.source || t("financialEvents.unknownSource")}</span><span>{formatTime(item.published)}</span></div>
+          <div className="flex items-start justify-between gap-3"><div><div className="mb-1 flex flex-wrap gap-1.5">{item.source === "Forex Factory" ? <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">{t("financialEvents.prioritySource")}</span> : null}{item.country ? <span className="rounded-full bg-muted px-2 py-0.5 text-[10px]">{item.country}</span> : null}{item.impact ? <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] text-warning">{t(`financialEvents.impact.${item.impact.toLowerCase()}`, { defaultValue: item.impact })}</span> : null}</div><h3 className="font-medium leading-6">{item.title}</h3></div><ExternalLink className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" /></div>
+          <div className="mt-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground"><span>{item.source || t("financialEvents.unknownSource")}</span><span>{formatTime(item.published, locale)}</span></div>
           {item.summary ? <p className="mt-2 text-xs text-muted-foreground">{item.summary}</p> : null}
         </a>) : <div className="p-8 text-center text-sm text-muted-foreground">{feed.available ? t("financialEvents.noItems") : t("financialEvents.unavailable")}</div>}
       </div>

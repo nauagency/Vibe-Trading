@@ -13,8 +13,8 @@ export function BrandMark({
     >
       <defs>
         <linearGradient id="vt-mark-grad" x1="0" y1="32" x2="32" y2="0" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#EA580C" />
-          <stop offset="1" stopColor="#F7A316" />
+          <stop offset="0" stopColor="#6B351F" />
+          <stop offset="1" stopColor="#A9683A" />
         </linearGradient>
       </defs>
       <rect width="32" height="32" rx="7.5" fill="url(#vt-mark-grad)" />

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import {
   AlertTriangle,
-  Bot,
   CircleDollarSign,
   FlaskConical,
   Layers3,
@@ -72,12 +71,6 @@ export function PaperTrading() {
             {t("paperTrading.refresh")}
           </button>
         </header>
-
-        <section className="grid gap-3 rounded-xl border border-primary/20 bg-primary/[0.03] p-4 md:grid-cols-[auto_1fr_auto] md:items-center">
-          <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary"><Bot className="h-5 w-5" /></div>
-          <div><div className="font-medium">Vibe‑Trading · Native Paper</div><p className="mt-1 text-xs text-muted-foreground">{t("paperTrading.flow")}</p></div>
-          <span className="w-fit rounded-full bg-positive/10 px-3 py-1 text-xs font-medium text-positive">{t("paperTrading.connected")}</span>
-        </section>
 
         {error ? <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/5 p-4 text-sm text-danger"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div> : null}
         {loading && !data ? <div className="flex h-56 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : null}

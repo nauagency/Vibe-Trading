@@ -176,6 +176,8 @@ export interface FinancialEventsDashboard {
   read_only: true;
   provider: string;
   priority_provider: string;
+  locale: "en" | "vi";
+  localized: boolean;
   sections: FinancialEventFeed[];
   assets: FinancialEventFeed[];
   lanes: FinancialEventFeed[];
@@ -550,7 +552,7 @@ function appendQueryParam(url: string, key: string, value: string): string {
 
 export const api = {
   getPaperTrading: () => request<PaperTradingDashboard>("/api/paper-trading", undefined, METADATA_TIMEOUT_MS),
-  getFinancialEvents: () => request<FinancialEventsDashboard>("/api/financial-events", undefined, METADATA_TIMEOUT_MS),
+  getFinancialEvents: (locale: "en" | "vi" = "en") => request<FinancialEventsDashboard>(`/api/financial-events?locale=${locale}`),
   uploadFile,
   getCorrelationAnalysis: (codes: string, days: number, method: "pearson" | "spearman", includeRegime: boolean, signal?: AbortSignal) =>
     request<CorrelationAnalysisResponse>(`/correlation/analysis?${new URLSearchParams({ codes, days: String(days), method, include_regime: String(includeRegime) })}`, { signal }),
