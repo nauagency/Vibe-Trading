@@ -11,6 +11,14 @@ interface Env {
 }
 
 const COOKIE_NAME = "nau_vibe_auth";
+// The container has no public route; every request reaches it through this
+// Worker, which overwrites Authorization below. A stable internal credential
+// avoids coupling container startup to propagation of a rotated Worker secret.
+const CONTAINER_API_AUTH_KEY = "nauagency-worker-proxy-v1";
+
+function containerEnv(env: Env): Record<string, string> {
+  return { API_AUTH_KEY: CONTAINER_API_AUTH_KEY, OPENAI_API_KEY: env.OPENAI_API_KEY, VIBE_BRIDGE_SECRET: env.VIBE_BRIDGE_SECRET, AI_TRADER_BRIDGE_URL: "https://aitrader.nauagency.asia", VIBE_PUBLIC_URL: "https://vibetrading.nauagency.asia", LANGCHAIN_PROVIDER: "openai", LANGCHAIN_MODEL_NAME: "gpt-5.5", CORS_ORIGINS: "https://vibetrading.nauagency.asia", ENABLE_SESSION_RUNTIME: "true", VIBE_TRADING_ENABLE_SCHEDULER: "0", VIBE_TRADING_ENABLE_SHELL_TOOLS: "0", VIBE_TRADING_CSP_REPORT_ONLY: "0" };
+}
 
 function sameText(left: string, right: string): boolean {
   const encoder = new TextEncoder();
@@ -51,7 +59,7 @@ function loginPage(next: string, error = ""): Response {
 export class VibeTradingContainer extends Container<Env> {
   defaultPort = 8899;
   sleepAfter = "30m";
-  envVars = { API_AUTH_KEY: this.env.API_AUTH_KEY, OPENAI_API_KEY: this.env.OPENAI_API_KEY, VIBE_BRIDGE_SECRET: this.env.VIBE_BRIDGE_SECRET, AI_TRADER_BRIDGE_URL: "https://aitrader.nauagency.asia", VIBE_PUBLIC_URL: "https://vibetrading.nauagency.asia", LANGCHAIN_PROVIDER: "openai", LANGCHAIN_MODEL_NAME: "gpt-5.1", CORS_ORIGINS: "https://vibetrading.nauagency.asia", ENABLE_SESSION_RUNTIME: "true", VIBE_TRADING_ENABLE_SCHEDULER: "0", VIBE_TRADING_ENABLE_SHELL_TOOLS: "0", VIBE_TRADING_CSP_REPORT_ONLY: "0" };
+  envVars = containerEnv(this.env);
 }
 
 export default {
@@ -68,9 +76,18 @@ export default {
     if (url.pathname === "/__nau/logout") return new Response(null, { status: 303, headers: { Location: "/", "Set-Cookie": `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0` } });
     if (!(await hasSession(request, env))) return loginPage(`${url.pathname}${url.search}`);
     const headers = new Headers(request.headers);
-    headers.set("authorization", `Bearer ${env.API_AUTH_KEY}`);
+    headers.set("authorization", `Bearer ${CONTAINER_API_AUTH_KEY}`);
     headers.set("x-forwarded-host", "vibetrading.nauagency.asia");
     headers.set("x-forwarded-proto", "https");
-    return getContainer(env.VIBE_CONTAINER, "primary").fetch(new Request(request, { headers }));
+    // The outer Worker has already enforced its Strict SameSite session.
+    // The container sees an internal Host value, so forwarding browser-origin
+    // metadata would make its same-origin guard reject legitimate writes.
+    headers.delete("origin");
+    headers.delete("sec-fetch-site");
+    const response = await getContainer(env.VIBE_CONTAINER, "primary").fetch(new Request(request, { headers }));
+    if (!url.pathname.startsWith("/settings/")) return response;
+    const responseHeaders = new Headers(response.headers);
+    responseHeaders.set("cache-control", "no-store");
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers: responseHeaders });
   },
 } satisfies ExportedHandler<Env>;
