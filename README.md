@@ -1149,6 +1149,9 @@ Copy `agent/.env.example` to `agent/.env` and uncomment the provider block you w
 | `TUSHARE_TOKEN` | No | Tushare Pro token for A-share data (falls back to AKShare) |
 | `TIMEOUT_SECONDS` | No | LLM call timeout, default 120s |
 | `API_AUTH_KEY` | Recommended for network deployments | Bearer token required when the API is reachable from non-local clients |
+| `AI_TRADER_BRIDGE_URL` | No | AI-Trader base URL. When set together with `VIBE_BRIDGE_SECRET`, successful backtests are published as research-only strategy records. |
+| `VIBE_BRIDGE_SECRET` | No | Shared service secret for the AI-Trader research bridge. Never place this value in frontend code. |
+| `VIBE_PUBLIC_URL` | No | Public Vibe-Trading URL included in imported research records. |
 | `VIBE_TRADING_ENABLE_SHELL_TOOLS` | No | Explicit opt-in for shell-capable tools in remote API/MCP-SSE style deployments |
 | `VIBE_TRADING_ALLOWED_FILE_ROOTS` | No | Extra comma-separated roots for document and broker-journal imports |
 | `VIBE_TRADING_ALLOWED_RUN_ROOTS` | No | Extra comma-separated roots for generated-code run directories |

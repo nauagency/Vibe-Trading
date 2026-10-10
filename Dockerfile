@@ -68,7 +68,8 @@ LABEL org.opencontainers.image.title="Vibe-Trading" \
 WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    VIBE_BRIDGE_SCHEMA_VERSION=1
 
 # Runtime-only native libs. NO build-essential here — these are weasyprint's
 # shared libraries (Pango/HarfBuzz/Fontconfig/Cairo/gdk-pixbuf) per its official
