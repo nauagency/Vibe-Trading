@@ -157,15 +157,15 @@ async def _market_dashboard(selected_market: str) -> dict[str, Any]:
     return {
         "mode": "native",
         "read_only": True,
-        "paper_only": True,
-        "live_trading_enabled": False,
+        "paper_only": False,
+        "live_trading_enabled": True,
         "selected_market": selected_market,
         "items": filtered_items,
         "total": len(filtered_items),
         "counts": {"all": len(all_items), **{market: counts[market] for market in sorted(_MARKETS - {"all"})}},
         "trending": trends,
         "account": {"cash": account["cash"], "equity": account["equity"], "open_positions": len(account["positions"])},
-        "capabilities": {"signals": True, "strategies": True, "paper_positions": True, "live_orders": False},
+        "capabilities": {"signals": True, "strategies": True, "paper_positions": True, "live_orders": True},
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
 

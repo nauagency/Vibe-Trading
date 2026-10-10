@@ -8,16 +8,19 @@ import type {
 
 const BASE = "";
 const configuredTimeout = Number(import.meta.env.VITE_API_TIMEOUT_MS);
-const REQUEST_TIMEOUT_MS = Number.isFinite(configuredTimeout) && configuredTimeout > 0
-  ? configuredTimeout : 120_000;
+const REQUEST_TIMEOUT_MS =
+  Number.isFinite(configuredTimeout) && configuredTimeout > 0
+    ? configuredTimeout
+    : 120_000;
 const METADATA_TIMEOUT_MS = Math.min(REQUEST_TIMEOUT_MS, 15_000);
 const SESSION_INDEX_CACHE_KEY = "vibe-trading:session-index:v1";
-const sessionMessagesCacheKey = (sid: string) => `vibe-trading:session-messages:v1:${sid}`;
+const sessionMessagesCacheKey = (sid: string) =>
+  `vibe-trading:session-messages:v1:${sid}`;
 
 function readBrowserCache<T>(key: string): T | null {
   try {
     const value = window.localStorage.getItem(key);
-    return value ? JSON.parse(value) as T : null;
+    return value ? (JSON.parse(value) as T) : null;
   } catch {
     return null;
   }
@@ -37,8 +40,14 @@ function mergeAndCacheSessions(remote: SessionItem[]): SessionItem[] {
   const archived = cached
     .filter((item) => !remoteIds.has(item.session_id))
     .map((item) => ({ ...item, archived: true }));
-  const merged = [...remote.map((item) => ({ ...item, archived: false })), ...archived]
-    .sort((a, b) => String(b.updated_at ?? b.created_at ?? "").localeCompare(String(a.updated_at ?? a.created_at ?? "")));
+  const merged = [
+    ...remote.map((item) => ({ ...item, archived: false })),
+    ...archived,
+  ].sort((a, b) =>
+    String(b.updated_at ?? b.created_at ?? "").localeCompare(
+      String(a.updated_at ?? a.created_at ?? ""),
+    ),
+  );
   writeBrowserCache(SESSION_INDEX_CACHE_KEY, merged);
   return merged;
 }
@@ -53,8 +62,15 @@ function updateCachedSession(session: SessionItem): void {
 
 function removeCachedSession(sid: string): void {
   const cached = readBrowserCache<SessionItem[]>(SESSION_INDEX_CACHE_KEY) ?? [];
-  writeBrowserCache(SESSION_INDEX_CACHE_KEY, cached.filter((item) => item.session_id !== sid));
-  try { window.localStorage.removeItem(sessionMessagesCacheKey(sid)); } catch { /* no-op */ }
+  writeBrowserCache(
+    SESSION_INDEX_CACHE_KEY,
+    cached.filter((item) => item.session_id !== sid),
+  );
+  try {
+    window.localStorage.removeItem(sessionMessagesCacheKey(sid));
+  } catch {
+    /* no-op */
+  }
 }
 
 /** Bound both the connection and body read; never automatically replay writes. */
@@ -74,17 +90,34 @@ async function performRequest<T>(
   if (options.signal?.aborted) abort();
   else options.signal?.addEventListener("abort", abort, { once: true });
   try {
-    const response = await fetch(`${BASE}${path}`, { ...options, signal: controller.signal });
+    const response = await fetch(`${BASE}${path}`, {
+      ...options,
+      signal: controller.signal,
+    });
     if (!response.ok) throw await errorFromResponse(response);
     return await read(response);
   } catch (error) {
     if (timedOut) {
-      const mutation = options.method && !["GET", "HEAD"].includes(options.method.toUpperCase());
-      throw new ApiError(i18n.t(mutation ? "connection.requestTimeoutMutation" : "connection.requestTimeout"), 0, "request_timeout");
+      const mutation =
+        options.method &&
+        !["GET", "HEAD"].includes(options.method.toUpperCase());
+      throw new ApiError(
+        i18n.t(
+          mutation
+            ? "connection.requestTimeoutMutation"
+            : "connection.requestTimeout",
+        ),
+        0,
+        "request_timeout",
+      );
     }
     if (options.signal?.aborted || error instanceof ApiError) throw error;
     if (error instanceof TypeError) {
-      throw new ApiError(i18n.t("connection.requestFailed"), 0, "network_error");
+      throw new ApiError(
+        i18n.t("connection.requestFailed"),
+        0,
+        "network_error",
+      );
     }
     throw error;
   } finally {
@@ -93,8 +126,15 @@ async function performRequest<T>(
   }
 }
 
-export async function downloadGeneratedReport(reportId: string, filename: string): Promise<void> {
-  const blob = await performRequest(`/api/reports/${encodeURIComponent(reportId)}`, { headers: authHeaders() }, (response) => response.blob());
+export async function downloadGeneratedReport(
+  reportId: string,
+  filename: string,
+): Promise<void> {
+  const blob = await performRequest(
+    `/api/reports/${encodeURIComponent(reportId)}`,
+    { headers: authHeaders() },
+    (response) => response.blob(),
+  );
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -188,15 +228,20 @@ export interface MarketTrend {
 export interface MarketDashboard {
   mode: "native";
   read_only: true;
-  paper_only: true;
-  live_trading_enabled: false;
+  paper_only: false;
+  live_trading_enabled: true;
   selected_market: string;
   items: MarketItem[];
   total: number;
   counts: Record<string, number>;
   trending: MarketTrend[];
   account: { cash: number; equity: number; open_positions: number };
-  capabilities: { signals: boolean; strategies: boolean; paper_positions: boolean; live_orders: false };
+  capabilities: {
+    signals: boolean;
+    strategies: boolean;
+    paper_positions: boolean;
+    live_orders: true;
+  };
   updated_at: string;
 }
 
@@ -226,38 +271,96 @@ export interface FinancialEventsDashboard {
 }
 
 export interface FinancialEventFeed {
-    id: string;
-    label: string;
-    available: boolean;
-    items: FinancialEventItem[];
-    error?: string;
-    sources?: string[];
+  id: string;
+  label: string;
+  available: boolean;
+  items: FinancialEventItem[];
+  error?: string;
+  sources?: string[];
 }
 
 export interface MacroSignal {
-  id: string; label: string; status: string; value: number | null; unit?: string;
-  explanation: string; as_of?: string;
+  id: string;
+  label: string;
+  status: string;
+  value: number | null;
+  unit?: string;
+  explanation: string;
+  as_of?: string;
 }
 export interface MacroSignalsPayload {
-  available: boolean; verdict: string; bullish_count: number; defensive_count?: number;
-  total_count: number; signals: MacroSignal[]; created_at: string | null;
+  available: boolean;
+  verdict: string;
+  bullish_count: number;
+  defensive_count?: number;
+  total_count: number;
+  signals: MacroSignal[];
+  created_at: string | null;
 }
 export interface EtfFlowPayload {
   available: boolean;
-  summary: { direction?: string; summary?: string; inflow_count?: number; outflow_count?: number; tracked_count?: number; net_score?: number };
-  etfs: Array<{ symbol: string; price_change_pct: number; volume_ratio: number; estimated_flow_score: number; direction: string; as_of: string }>;
-  created_at: string | null; is_estimated: boolean;
+  summary: {
+    direction?: string;
+    summary?: string;
+    inflow_count?: number;
+    outflow_count?: number;
+    tracked_count?: number;
+    net_score?: number;
+  };
+  etfs: Array<{
+    symbol: string;
+    price_change_pct: number;
+    volume_ratio: number;
+    estimated_flow_score: number;
+    direction: string;
+    as_of: string;
+  }>;
+  created_at: string | null;
+  is_estimated: boolean;
 }
 export interface StockAnalysis {
-  available: boolean; symbol: string; current_price?: number; currency?: string; signal?: string;
-  signal_score?: number; trend_status?: string; support_levels?: number[]; resistance_levels?: number[];
-  bullish_factors?: string[]; risk_factors?: string[]; summary?: string; created_at?: string;
-  price_state?: string; price_source?: string; price_as_of?: string;
-  analysis?: { return_5d_pct?: number; return_20d_pct?: number; distance_to_support_pct?: number; distance_to_resistance_pct?: number; moving_averages?: Record<string, number | null> };
+  available: boolean;
+  symbol: string;
+  current_price?: number;
+  currency?: string;
+  signal?: string;
+  signal_score?: number;
+  trend_status?: string;
+  support_levels?: number[];
+  resistance_levels?: number[];
+  bullish_factors?: string[];
+  risk_factors?: string[];
+  summary?: string;
+  created_at?: string;
+  price_state?: string;
+  price_source?: string;
+  price_as_of?: string;
+  analysis?: {
+    return_5d_pct?: number;
+    return_20d_pct?: number;
+    distance_to_support_pct?: number;
+    distance_to_resistance_pct?: number;
+    moving_averages?: Record<string, number | null>;
+  };
 }
 export interface MarketNewsPayload {
-  available: boolean; localized: boolean; created_at: string;
-  sections: Array<{ category: string; label: string; description: string; available: boolean; created_at: string; summary: { item_count: number; activity_level: string }; items: Array<FinancialEventItem & { overall_sentiment_label?: string; ticker_sentiment?: Array<{ ticker: string }> }> }>;
+  available: boolean;
+  localized: boolean;
+  created_at: string;
+  sections: Array<{
+    category: string;
+    label: string;
+    description: string;
+    available: boolean;
+    created_at: string;
+    summary: { item_count: number; activity_level: string };
+    items: Array<
+      FinancialEventItem & {
+        overall_sentiment_label?: string;
+        ticker_sentiment?: Array<{ ticker: string }>;
+      }
+    >;
+  }>;
 }
 
 const AUTH_REQUIRED_MESSAGE_KEY = "agent.authRequired";
@@ -274,7 +377,9 @@ i18n.on("languageChanged", () => {
 });
 
 export function isAuthRequiredError(error: unknown): boolean {
-  return error instanceof ApiError && (error.status === 401 || error.status === 403);
+  return (
+    error instanceof ApiError && (error.status === 401 || error.status === 403)
+  );
 }
 
 export interface CorrelationResponse {
@@ -286,8 +391,25 @@ export interface CorrelationAnalysisResponse {
   correlation: CorrelationResponse | null;
   regime: CorrelationRegimeResponse | null;
   errors: { correlation?: string; regime?: string };
-  coverage: { requested: string[]; missing: string[]; observations: number; first_date: string | null; last_date: string | null;
-    diagnostics: Record<string, { symbol: string; market: string; source: string | null; attempts: Array<{ source: string; reason: "source_unavailable" | "fetch_failed" | "no_data" }> }> };
+  coverage: {
+    requested: string[];
+    missing: string[];
+    observations: number;
+    first_date: string | null;
+    last_date: string | null;
+    diagnostics: Record<
+      string,
+      {
+        symbol: string;
+        market: string;
+        source: string | null;
+        attempts: Array<{
+          source: string;
+          reason: "source_unavailable" | "fetch_failed" | "no_data";
+        }>;
+      }
+    >;
+  };
 }
 
 export interface RegimeEpisode {
@@ -391,7 +513,13 @@ export interface PortfolioSnapshot {
     unpriced_or_other_usd: number;
     identified_coverage: number;
   };
-  fx: { usd_cny: number; usd_hkd: number; rates?: Record<string, number>; fetched_at: string; stale: boolean };
+  fx: {
+    usd_cny: number;
+    usd_hkd: number;
+    rates?: Record<string, number>;
+    fetched_at: string;
+    stale: boolean;
+  };
   accounts: PortfolioAccount[];
   positions: PortfolioPosition[];
   combined_holdings?: Array<{
@@ -416,8 +544,20 @@ export interface PortfolioHistoryPoint {
 export interface PortfolioRefreshState {
   running: boolean;
   current: string | null;
-  sources?: Record<string, { status: "idle" | "pending" | "refreshing" | "ok" | "error"; error?: string | null }>;
-  brokers?: Record<string, { status: "idle" | "pending" | "refreshing" | "ok" | "error"; error?: string | null }>;
+  sources?: Record<
+    string,
+    {
+      status: "idle" | "pending" | "refreshing" | "ok" | "error";
+      error?: string | null;
+    }
+  >;
+  brokers?: Record<
+    string,
+    {
+      status: "idle" | "pending" | "refreshing" | "ok" | "error";
+      error?: string | null;
+    }
+  >;
 }
 
 export interface PortfolioReconnectState {
@@ -554,12 +694,23 @@ async function errorFromResponse(res: Response): Promise<ApiError> {
     if (typeof raw === "string" && raw) {
       detail = raw;
     } else if (raw && typeof raw === "object") {
-      const structured = raw as { code?: unknown; message?: unknown; max_length?: unknown };
-      if (typeof structured.code === "string" && structured.code) code = structured.code;
-      if (typeof structured.message === "string" && structured.message) detail = structured.message;
+      const structured = raw as {
+        code?: unknown;
+        message?: unknown;
+        max_length?: unknown;
+      };
+      if (typeof structured.code === "string" && structured.code)
+        code = structured.code;
+      if (typeof structured.message === "string" && structured.message)
+        detail = structured.message;
       else if (code) detail = code;
-      if (code === "message_too_long" && typeof structured.max_length === "number") {
-        detail = i18n.t("agent.messageTooLong", { limit: structured.max_length.toLocaleString() });
+      if (
+        code === "message_too_long" &&
+        typeof structured.max_length === "number"
+      ) {
+        detail = i18n.t("agent.messageTooLong", {
+          limit: structured.max_length.toLocaleString(),
+        });
       }
     }
   } catch {
@@ -571,32 +722,44 @@ async function errorFromResponse(res: Response): Promise<ApiError> {
   return new ApiError(detail, res.status, code);
 }
 
-async function request<T>(path: string, options?: RequestInit, timeoutMs?: number): Promise<T> {
+async function request<T>(
+  path: string,
+  options?: RequestInit,
+  timeoutMs?: number,
+): Promise<T> {
   const { headers, ...rest } = options ?? {};
-  const mergedHeaders: Record<string, string> = { "Content-Type": "application/json", ...authHeaders() };
+  const mergedHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...authHeaders(),
+  };
   if (headers) {
     new Headers(headers).forEach((value, key) => {
       mergedHeaders[key] = value;
     });
   }
-  return performRequest(path, {
-    ...rest,
-    headers: mergedHeaders,
-  }, async (res) => {
-    const text = await res.text();
-    if (!text) return {} as T;
+  return performRequest(
+    path,
+    {
+      ...rest,
+      headers: mergedHeaders,
+    },
+    async (res) => {
+      const text = await res.text();
+      if (!text) return {} as T;
 
-    const contentType = res.headers.get("content-type") || "";
-    if (!contentType.includes("application/json")) {
-      const preview = text.slice(0, 80).replace(/\s+/g, " ");
-      throw new ApiError(
-        `Expected JSON from ${path}, got ${contentType || "unknown content type"}: ${preview}`,
-        res.status,
-      );
-    }
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const preview = text.slice(0, 80).replace(/\s+/g, " ");
+        throw new ApiError(
+          `Expected JSON from ${path}, got ${contentType || "unknown content type"}: ${preview}`,
+          res.status,
+        );
+      }
 
-    return JSON.parse(text) as T;
-  }, timeoutMs);
+      return JSON.parse(text) as T;
+    },
+    timeoutMs,
+  );
 }
 
 export interface UploadResult {
@@ -608,7 +771,11 @@ export interface UploadResult {
 async function uploadFile(file: File): Promise<UploadResult> {
   const form = new FormData();
   form.append("file", file);
-  return performRequest("/upload", { method: "POST", headers: authHeaders(), body: form }, (res) => res.json());
+  return performRequest(
+    "/upload",
+    { method: "POST", headers: authHeaders(), body: form },
+    (res) => res.json(),
+  );
 }
 
 function appendQueryParam(url: string, key: string, value: string): string {
@@ -617,19 +784,224 @@ function appendQueryParam(url: string, key: string, value: string): string {
 }
 
 export const api = {
-  getPaperTrading: () => request<PaperTradingDashboard>("/api/paper-trading", undefined, METADATA_TIMEOUT_MS),
-  getMarket: (market = "all") => request<MarketDashboard>(`/api/market?market=${encodeURIComponent(market)}`, undefined, REQUEST_TIMEOUT_MS),
-  getFinancialEvents: (locale: "en" | "vi" = "en") => request<FinancialEventsDashboard>(`/api/financial-events?locale=${locale}`),
-  getMacroSignals: () => request<MacroSignalsPayload>("/api/market-intel/macro-signals", undefined, REQUEST_TIMEOUT_MS),
-  getEtfFlows: () => request<EtfFlowPayload>("/api/market-intel/etf-flows", undefined, REQUEST_TIMEOUT_MS),
-  getFeaturedStocks: (limit = 6) => request<{ available: boolean; items: StockAnalysis[] }>(`/api/market-intel/stocks/featured?limit=${limit}`, undefined, REQUEST_TIMEOUT_MS),
-  getStockAnalysis: (symbol: string) => request<StockAnalysis>(`/api/market-intel/stocks/${encodeURIComponent(symbol)}/latest`, undefined, REQUEST_TIMEOUT_MS),
-  getStockHistory: (symbol: string, limit = 6) => request<{ available: boolean; symbol: string; history: StockAnalysis[] }>(`/api/market-intel/stocks/${encodeURIComponent(symbol)}/history?limit=${limit}`, undefined, REQUEST_TIMEOUT_MS),
-  getMarketNews: (locale: "en" | "vi" = "en", category?: string, limit = 12) => request<MarketNewsPayload>(`/api/market-intel/news?locale=${locale}&limit=${limit}${category ? `&category=${encodeURIComponent(category)}` : ""}`, undefined, REQUEST_TIMEOUT_MS),
+  getPaperTrading: () =>
+    request<PaperTradingDashboard>(
+      "/api/paper-trading",
+      undefined,
+      METADATA_TIMEOUT_MS,
+    ),
+  getMarket: (market = "all") =>
+    request<MarketDashboard>(
+      `/api/market?market=${encodeURIComponent(market)}`,
+      undefined,
+      REQUEST_TIMEOUT_MS,
+    ),
+  getGroupedMarketAgents: (market = "all", limit = 20, offset = 0) =>
+    request<{ groups: Record<string, any>[]; total: number }>(
+      `/api/signals/grouped?message_type=operation&market=${encodeURIComponent(market)}&limit=${limit}&offset=${offset}`,
+    ),
+  getAgentSignals: (agentId: number, type: string, limit = 50) =>
+    request<{ signals: Record<string, any>[]; total: number }>(
+      `/api/signals/${agentId}?message_type=${encodeURIComponent(type)}&limit=${limit}`,
+    ),
+  getAgentPositions: (agentId: number) =>
+    request<{ positions: Record<string, any>[] }>(
+      `/api/agents/${agentId}/positions`,
+    ),
+  getTrendingMarkets: (limit = 10) =>
+    request<{ trending: Record<string, any>[] }>(
+      `/api/trending?limit=${limit}`,
+    ),
+  getFinancialEvents: (locale: "en" | "vi" = "en") =>
+    request<FinancialEventsDashboard>(`/api/financial-events?locale=${locale}`),
+  getMacroSignals: () =>
+    request<MacroSignalsPayload>(
+      "/api/market-intel/macro-signals",
+      undefined,
+      REQUEST_TIMEOUT_MS,
+    ),
+  getEtfFlows: () =>
+    request<EtfFlowPayload>(
+      "/api/market-intel/etf-flows",
+      undefined,
+      REQUEST_TIMEOUT_MS,
+    ),
+  getFeaturedStocks: (limit = 6) =>
+    request<{ available: boolean; items: StockAnalysis[] }>(
+      `/api/market-intel/stocks/featured?limit=${limit}`,
+      undefined,
+      REQUEST_TIMEOUT_MS,
+    ),
+  getStockAnalysis: (symbol: string) =>
+    request<StockAnalysis>(
+      `/api/market-intel/stocks/${encodeURIComponent(symbol)}/latest`,
+      undefined,
+      REQUEST_TIMEOUT_MS,
+    ),
+  getStockHistory: (symbol: string, limit = 6) =>
+    request<{ available: boolean; symbol: string; history: StockAnalysis[] }>(
+      `/api/market-intel/stocks/${encodeURIComponent(symbol)}/history?limit=${limit}`,
+      undefined,
+      REQUEST_TIMEOUT_MS,
+    ),
+  getMarketNews: (locale: "en" | "vi" = "en", category?: string, limit = 12) =>
+    request<MarketNewsPayload>(
+      `/api/market-intel/news?locale=${locale}&limit=${limit}${category ? `&category=${encodeURIComponent(category)}` : ""}`,
+      undefined,
+      REQUEST_TIMEOUT_MS,
+    ),
+  getCommunityAccount: () =>
+    request<Record<string, any>>("/api/claw/agents/me"),
+  getLeaderboard: (
+    limit = 20,
+    offset = 0,
+    includeHistory = true,
+    days = 30,
+    metric = "return",
+  ) =>
+    request<{ top_agents: Record<string, any>[]; total: number }>(
+      `/api/profit/history?limit=${limit}&offset=${offset}&include_history=${includeHistory}&days=${days}&metric=${encodeURIComponent(metric)}`,
+    ),
+  getCommunitySignals: (type: string, limit = 20, offset = 0, sort = "new") =>
+    request<{ signals: Record<string, any>[]; total: number }>(
+      `/api/signals/feed?message_type=${encodeURIComponent(type)}&limit=${limit}&offset=${offset}&sort=${sort}`,
+    ),
+  postCommunitySignal: (
+    type: "strategy" | "discussion",
+    body: Record<string, unknown>,
+  ) =>
+    request<{ success: boolean; signal: Record<string, any> }>(
+      `/api/signals/${type}`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  getSignalReplies: (id: number) =>
+    request<{ replies: Record<string, any>[]; total: number }>(
+      `/api/signals/${id}/replies`,
+    ),
+  postSignalReply: (body: Record<string, unknown>) =>
+    request<{ success: boolean; reply: Record<string, any> }>(
+      "/api/signals/reply",
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  acceptSignalReply: (signalId: number, replyId: number) =>
+    request<Record<string, any>>(
+      `/api/signals/${signalId}/replies/${replyId}/accept`,
+      { method: "POST" },
+    ),
+  getCommunityPositions: () =>
+    request<{ positions: Record<string, any>[]; account: Record<string, any> }>(
+      "/api/positions",
+    ),
+  executeCommunityTrade: (body: Record<string, unknown>) =>
+    request<Record<string, any>>("/api/signals/realtime", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  exchangeCommunityPoints: (amount: number) =>
+    request<Record<string, any>>("/api/agents/points/exchange", {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    }),
+  getPointsHistory: () =>
+    request<{ history: Record<string, any>[]; total: number }>(
+      "/api/users/points/history",
+    ),
+  transferCommunityPoints: (recipientId: number, amount: number) =>
+    request<Record<string, any>>("/api/users/points/transfer", {
+      method: "POST",
+      body: JSON.stringify({ recipient_id: recipientId, amount }),
+    }),
+  getFollowing: () =>
+    request<{ following: Record<string, any>[]; total: number }>(
+      "/api/signals/following",
+    ),
+  followTrader: (leaderId: number, enabled: boolean) =>
+    request<Record<string, any>>(
+      `/api/signals/${enabled ? "follow" : "unfollow"}`,
+      { method: "POST", body: JSON.stringify({ leader_id: leaderId }) },
+    ),
+  getChallenges: (market = "all") =>
+    request<{ challenges: Record<string, any>[]; total: number }>(
+      `/api/challenges?market=${encodeURIComponent(market)}`,
+    ),
+  createChallenge: (body: Record<string, unknown>) =>
+    request<Record<string, any>>("/api/challenges", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getChallenge: (key: string) =>
+    request<Record<string, any>>(`/api/challenges/${encodeURIComponent(key)}`),
+  joinChallenge: (key: string) =>
+    request<Record<string, any>>(
+      `/api/challenges/${encodeURIComponent(key)}/join`,
+      { method: "POST" },
+    ),
+  getChallengeLeaderboard: (key: string) =>
+    request<{ leaderboard: Record<string, any>[] }>(
+      `/api/challenges/${encodeURIComponent(key)}/leaderboard`,
+    ),
+  getChallengePortfolio: (key: string) =>
+    request<Record<string, any>>(
+      `/api/challenges/${encodeURIComponent(key)}/portfolio`,
+    ),
+  challengeTrade: (key: string, body: Record<string, unknown>) =>
+    request<Record<string, any>>(
+      `/api/challenges/${encodeURIComponent(key)}/trade`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  getChallengeSubmissions: (key: string) =>
+    request<{ submissions: Record<string, any>[] }>(
+      `/api/challenges/${encodeURIComponent(key)}/submissions`,
+    ),
+  submitChallenge: (key: string, body: Record<string, unknown>) =>
+    request<Record<string, any>>(
+      `/api/challenges/${encodeURIComponent(key)}/submit`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  voteChallengeSubmission: (key: string, id: number) =>
+    request<Record<string, any>>(
+      `/api/challenges/${encodeURIComponent(key)}/submissions/${id}/vote`,
+      { method: "POST" },
+    ),
+  getChallengeTeams: (key: string) =>
+    request<{ teams: Record<string, any>[]; total: number }>(
+      `/api/challenges/${encodeURIComponent(key)}/teams`,
+    ),
+  createChallengeTeam: (key: string, body: Record<string, unknown>) =>
+    request<Record<string, any>>(
+      `/api/challenges/${encodeURIComponent(key)}/teams`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  joinChallengeTeam: (key: string, teamId: number) =>
+    request<Record<string, any>>(
+      `/api/challenges/${encodeURIComponent(key)}/teams/${teamId}/join`,
+      { method: "POST" },
+    ),
+  getChallengeTeamLeaderboard: (key: string) =>
+    request<{ leaderboard: Record<string, any>[] }>(
+      `/api/challenges/${encodeURIComponent(key)}/team-leaderboard`,
+    ),
+  getMarketPrice: (symbol: string, market = "us-stock") =>
+    request<{ price: number; source: string; as_of: string }>(
+      `/api/price?symbol=${encodeURIComponent(symbol)}&market=${encodeURIComponent(market)}`,
+    ),
   uploadFile,
-  getCorrelationAnalysis: (codes: string, days: number, method: "pearson" | "spearman", includeRegime: boolean, signal?: AbortSignal) =>
-    request<CorrelationAnalysisResponse>(`/correlation/analysis?${new URLSearchParams({ codes, days: String(days), method, include_regime: String(includeRegime) })}`, { signal }),
-  getCorrelation: (codes: string, days: number, method: "pearson" | "spearman") =>
+  getCorrelationAnalysis: (
+    codes: string,
+    days: number,
+    method: "pearson" | "spearman",
+    includeRegime: boolean,
+    signal?: AbortSignal,
+  ) =>
+    request<CorrelationAnalysisResponse>(
+      `/correlation/analysis?${new URLSearchParams({ codes, days: String(days), method, include_regime: String(includeRegime) })}`,
+      { signal },
+    ),
+  getCorrelation: (
+    codes: string,
+    days: number,
+    method: "pearson" | "spearman",
+  ) =>
     request<CorrelationResponse>(
       `/correlation?codes=${encodeURIComponent(codes)}&days=${encodeURIComponent(String(days))}&method=${encodeURIComponent(method)}`,
     ),
@@ -637,39 +1009,71 @@ export const api = {
     request<CorrelationRegimeResponse>(
       `/correlation/regime?codes=${encodeURIComponent(codes)}&days=${encodeURIComponent(String(days))}`,
     ),
-  getPortfolio: () => request<{ status: string; snapshot: PortfolioSnapshot | null }>("/api/portfolio"),
-  refreshPortfolio: () => request<{ status: string; snapshot: PortfolioSnapshot }>("/api/portfolio/refresh", { method: "POST" }),
-  getPortfolioRefreshStatus: () => request<{ status: string; refresh: PortfolioRefreshState }>("/api/portfolio/refresh-status"),
+  getPortfolio: () =>
+    request<{ status: string; snapshot: PortfolioSnapshot | null }>(
+      "/api/portfolio",
+    ),
+  refreshPortfolio: () =>
+    request<{ status: string; snapshot: PortfolioSnapshot }>(
+      "/api/portfolio/refresh",
+      { method: "POST" },
+    ),
+  getPortfolioRefreshStatus: () =>
+    request<{ status: string; refresh: PortfolioRefreshState }>(
+      "/api/portfolio/refresh-status",
+    ),
   reconnectPortfolioSource: (sourceId: string) =>
-    request<{ status: string; reconnect: PortfolioReconnectState }>(`/api/portfolio/sources/${encodeURIComponent(sourceId)}/reconnect`, { method: "POST" }),
+    request<{ status: string; reconnect: PortfolioReconnectState }>(
+      `/api/portfolio/sources/${encodeURIComponent(sourceId)}/reconnect`,
+      { method: "POST" },
+    ),
   getPortfolioReconnectStatus: () =>
-    request<{ status: string; reconnect: PortfolioReconnectState }>("/api/portfolio/reconnect-status"),
-  getPortfolioSettings: () => request<PortfolioSettingsResponse>("/api/portfolio/settings"),
+    request<{ status: string; reconnect: PortfolioReconnectState }>(
+      "/api/portfolio/reconnect-status",
+    ),
+  getPortfolioSettings: () =>
+    request<PortfolioSettingsResponse>("/api/portfolio/settings"),
   updatePortfolioSettings: (settings: PortfolioSettings) =>
     request<PortfolioSettingsResponse>("/api/portfolio/settings", {
       method: "PUT",
       body: JSON.stringify(settings),
     }),
   getConnections: () => request<ConnectionsResponse>("/api/connections"),
-  createConnection: (payload: { id: string; profile_id: string; label: string }) =>
-    request<{ status: string; connection: LocalConnection }>("/api/connections", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-  saveConnectionCredentials: (connectionId: string, values: Record<string, string>) =>
+  createConnection: (payload: {
+    id: string;
+    profile_id: string;
+    label: string;
+  }) =>
+    request<{ status: string; connection: LocalConnection }>(
+      "/api/connections",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+    ),
+  saveConnectionCredentials: (
+    connectionId: string,
+    values: Record<string, string>,
+  ) =>
     request<{ status: string; credential_status: Record<string, boolean> }>(
       `/api/connections/${encodeURIComponent(connectionId)}/credentials`,
       { method: "POST", body: JSON.stringify({ values }) },
     ),
   checkConnection: (connectionId: string) =>
-    request<{ status: string; connection_id: string; report: Record<string, unknown> }>(
-      `/api/connections/${encodeURIComponent(connectionId)}/check`,
-      { method: "POST" },
-    ),
+    request<{
+      status: string;
+      connection_id: string;
+      report: Record<string, unknown>;
+    }>(`/api/connections/${encodeURIComponent(connectionId)}/check`, {
+      method: "POST",
+    }),
   getConnectionAccounts: (connectionId: string) =>
-    request<{ status: string; connection_id: string; account_ref: string; accounts: BrokerAccountChoice[] }>(
-      `/api/connections/${encodeURIComponent(connectionId)}/accounts`,
-    ),
+    request<{
+      status: string;
+      connection_id: string;
+      account_ref: string;
+      accounts: BrokerAccountChoice[];
+    }>(`/api/connections/${encodeURIComponent(connectionId)}/accounts`),
   selectConnectionAccount: (connectionId: string, accountRef: string) =>
     request<{ status: string; connection: LocalConnection }>(
       `/api/connections/${encodeURIComponent(connectionId)}/account`,
@@ -681,11 +1085,20 @@ export const api = {
       { method: "DELETE" },
     ),
   getPortfolioHistory: (limit = 180) =>
-    request<{ status: string; history: PortfolioHistoryPoint[] }>(`/api/portfolio/history?limit=${encodeURIComponent(String(limit))}`),
+    request<{ status: string; history: PortfolioHistoryPoint[] }>(
+      `/api/portfolio/history?limit=${encodeURIComponent(String(limit))}`,
+    ),
   downloadPortfolioCsv: async () => {
-    return performRequest("/api/portfolio/export.csv", { headers: authHeaders() }, (response) => response.blob());
+    return performRequest(
+      "/api/portfolio/export.csv",
+      { headers: authHeaders() },
+      (response) => response.blob(),
+    );
   },
-  listRuns: (limit?: number) => request<RunListItem[]>(`/runs${limit ? `?limit=${encodeURIComponent(String(limit))}` : ""}`),
+  listRuns: (limit?: number) =>
+    request<RunListItem[]>(
+      `/runs${limit ? `?limit=${encodeURIComponent(String(limit))}` : ""}`,
+    ),
   getRun: (id: string, params: RunDetailParams = {}) => {
     const q = new URLSearchParams();
     if (params.chart_payload) q.set("chart_payload", params.chart_payload);
@@ -693,23 +1106,38 @@ export const api = {
     const qs = q.toString();
     return request<RunData>(`/runs/${id}${qs ? `?${qs}` : ""}`);
   },
-  getRunCode: (id: string) => request<Record<string, string>>(`/runs/${id}/code`),
-  getRunFactor: (id: string) => request<FactorReportPayload>(`/runs/${id}/factor`),
-  getRunAttribution: (id: string) => request<AttributionResponse>(`/runs/${encodeURIComponent(id)}/attribution`),
+  getRunCode: (id: string) =>
+    request<Record<string, string>>(`/runs/${id}/code`),
+  getRunFactor: (id: string) =>
+    request<FactorReportPayload>(`/runs/${id}/factor`),
+  getRunAttribution: (id: string) =>
+    request<AttributionResponse>(`/runs/${encodeURIComponent(id)}/attribution`),
   getRunPine: (id: string) => request<PineScriptResult>(`/runs/${id}/pine`),
-  listSessions: async () => mergeAndCacheSessions(await request<SessionItem[]>("/sessions", undefined, METADATA_TIMEOUT_MS)),
+  listSessions: async () =>
+    mergeAndCacheSessions(
+      await request<SessionItem[]>("/sessions", undefined, METADATA_TIMEOUT_MS),
+    ),
   createSession: async (title?: string) => {
-    const session = await request<SessionItem>("/sessions", { method: "POST", body: JSON.stringify({ title: title || "" }) });
+    const session = await request<SessionItem>("/sessions", {
+      method: "POST",
+      body: JSON.stringify({ title: title || "" }),
+    });
     updateCachedSession(session);
     return session;
   },
   deleteSession: async (sid: string) => {
     try {
-      const result = await request<{ status: string }>(`/sessions/${sid}`, { method: "DELETE" });
+      const result = await request<{ status: string }>(`/sessions/${sid}`, {
+        method: "DELETE",
+      });
       removeCachedSession(sid);
       return result;
     } catch (error) {
-      if (error instanceof ApiError && error.status === 404 && readBrowserCache<MessageItem[]>(sessionMessagesCacheKey(sid))) {
+      if (
+        error instanceof ApiError &&
+        error.status === 404 &&
+        readBrowserCache<MessageItem[]>(sessionMessagesCacheKey(sid))
+      ) {
         removeCachedSession(sid);
         return { status: "deleted-local-archive" };
       }
@@ -717,26 +1145,44 @@ export const api = {
     }
   },
   renameSession: async (sid: string, title: string) => {
-    const result = await request<{ status: string }>(`/sessions/${sid}`, { method: "PATCH", body: JSON.stringify({ title }) });
-    const cached = readBrowserCache<SessionItem[]>(SESSION_INDEX_CACHE_KEY) ?? [];
-    writeBrowserCache(SESSION_INDEX_CACHE_KEY, cached.map((item) => item.session_id === sid ? { ...item, title } : item));
+    const result = await request<{ status: string }>(`/sessions/${sid}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    });
+    const cached =
+      readBrowserCache<SessionItem[]>(SESSION_INDEX_CACHE_KEY) ?? [];
+    writeBrowserCache(
+      SESSION_INDEX_CACHE_KEY,
+      cached.map((item) =>
+        item.session_id === sid ? { ...item, title } : item,
+      ),
+    );
     return result;
   },
   // Codex-style LLM summary title from the first exchange; backend refuses to
   // overwrite a manual rename, so this is safe to fire-and-forget.
-  autoTitleSession: (sid: string) => request<{ status: string; title: string }>(`/sessions/${sid}/title/auto`, { method: "POST" }),
+  autoTitleSession: (sid: string) =>
+    request<{ status: string; title: string }>(`/sessions/${sid}/title/auto`, {
+      method: "POST",
+    }),
   // Scheduled research: cadence + timezone are stored as authored (local
   // wall-clock cron + IANA key), so list rows render without any UTC math.
-  listScheduledRuns: (signal?: AbortSignal) => request<ScheduledRun[]>("/scheduled-runs", { signal }),
+  listScheduledRuns: (signal?: AbortSignal) =>
+    request<ScheduledRun[]>("/scheduled-runs", { signal }),
   createScheduledRun: (body: CreateScheduledRunRequest) =>
-    request<ScheduledRun>("/scheduled-runs", { method: "POST", body: JSON.stringify(body) }),
+    request<ScheduledRun>("/scheduled-runs", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   updateScheduledRun: (id: string, body: UpdateScheduledRunRequest) =>
     request<ScheduledRun>(`/scheduled-runs/${encodeURIComponent(id)}`, {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
   deleteScheduledRun: (id: string) =>
-    request<void>(`/scheduled-runs/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    request<void>(`/scheduled-runs/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
   commitScheduledResearchProposal: (proposalId: string) =>
     request<ScheduledResearchProposal>(
       `/scheduled-runs/proposals/${encodeURIComponent(proposalId)}/commit`,
@@ -747,15 +1193,24 @@ export const api = {
       `/scheduled-runs/proposals/${encodeURIComponent(proposalId)}/discard`,
       { method: "POST" },
     ),
-  sendMessage: (sid: string, content: string) => request<{ message_id: string; attempt_id: string }>(`/sessions/${sid}/messages`, { method: "POST", body: JSON.stringify({ content }) }),
-  cancelSession: (sid: string) => request<{ status: string }>(`/sessions/${sid}/cancel`, { method: "POST" }),
+  sendMessage: (sid: string, content: string) =>
+    request<{ message_id: string; attempt_id: string }>(
+      `/sessions/${sid}/messages`,
+      { method: "POST", body: JSON.stringify({ content }) },
+    ),
+  cancelSession: (sid: string) =>
+    request<{ status: string }>(`/sessions/${sid}/cancel`, { method: "POST" }),
   getSessionMessages: async (sid: string) => {
     try {
-      const messages = await request<MessageItem[]>(`/sessions/${sid}/messages`);
+      const messages = await request<MessageItem[]>(
+        `/sessions/${sid}/messages`,
+      );
       writeBrowserCache(sessionMessagesCacheKey(sid), messages);
       return messages;
     } catch (error) {
-      const cached = readBrowserCache<MessageItem[]>(sessionMessagesCacheKey(sid));
+      const cached = readBrowserCache<MessageItem[]>(
+        sessionMessagesCacheKey(sid),
+      );
       if (cached) return cached;
       throw error;
     }
@@ -798,12 +1253,17 @@ export const api = {
       body: JSON.stringify({ preset_name, user_vars }),
     }),
   listSwarmRuns: () => request<SwarmRunSummary[]>("/swarm/runs"),
-  getSwarmRun: (id: string) => request<Record<string, unknown>>(`/swarm/runs/${id}`),
-  swarmSseUrl: (id: string) => withAuthTicket(`${BASE}/swarm/runs/${id}/events`),
+  getSwarmRun: (id: string) =>
+    request<Record<string, unknown>>(`/swarm/runs/${id}`),
+  swarmSseUrl: (id: string) =>
+    withAuthTicket(`${BASE}/swarm/runs/${id}/events`),
   cancelSwarmRun: (id: string) =>
     request<{ status: string }>(`/swarm/runs/${id}/cancel`, { method: "POST" }),
   retrySwarmRun: (id: string) =>
-    request<{ id: string; status: string; preset_name: string }>(`/swarm/runs/${id}/retry`, { method: "POST" }),
+    request<{ id: string; status: string; preset_name: string }>(
+      `/swarm/runs/${id}/retry`,
+      { method: "POST" },
+    ),
   getLLMSettings: () => request<LLMSettings>("/settings/llm"),
   updateLLMSettings: (settings: UpdateLLMSettingsRequest) =>
     request<LLMSettings>("/settings/llm", {
@@ -815,15 +1275,20 @@ export const api = {
       method: "POST",
       body: JSON.stringify(settings),
     }),
-  getDataSourceSettings: () => request<DataSourceSettings>("/settings/data-sources"),
+  getDataSourceSettings: () =>
+    request<DataSourceSettings>("/settings/data-sources"),
   updateDataSourceSettings: (settings: UpdateDataSourceSettingsRequest) =>
     request<DataSourceSettings>("/settings/data-sources", {
       method: "PUT",
       body: JSON.stringify(settings),
     }),
   getChannelStatus: () => request<ChannelRuntimeStatus>("/channels/status"),
-  startChannels: () => request<ChannelRuntimeActionResponse>("/channels/start", { method: "POST" }),
-  stopChannels: () => request<ChannelRuntimeActionResponse>("/channels/stop", { method: "POST" }),
+  startChannels: () =>
+    request<ChannelRuntimeActionResponse>("/channels/start", {
+      method: "POST",
+    }),
+  stopChannels: () =>
+    request<ChannelRuntimeActionResponse>("/channels/stop", { method: "POST" }),
   runChannelPairingCommand: (body: ChannelPairingCommandRequest) =>
     request<ChannelPairingCommandResponse>("/channels/pairing/command", {
       method: "POST",
@@ -842,9 +1307,20 @@ export const api = {
       body: JSON.stringify(body ?? {}),
     }),
   // Alpha Zoo API
-  getAlphaReadiness: () => request<AlphaReadiness>("/alpha/readiness", {}, METADATA_TIMEOUT_MS),
-  getAlphaBenchJob: (jobId: string) => request<AlphaJobSnapshot<AlphaBenchResult>>(`/alpha/bench/${encodeURIComponent(jobId)}`, {}, METADATA_TIMEOUT_MS),
-  getAlphaCompareJob: (jobId: string) => request<AlphaJobSnapshot<AlphaCompareResult>>(`/alpha/compare/${encodeURIComponent(jobId)}`, {}, METADATA_TIMEOUT_MS),
+  getAlphaReadiness: () =>
+    request<AlphaReadiness>("/alpha/readiness", {}, METADATA_TIMEOUT_MS),
+  getAlphaBenchJob: (jobId: string) =>
+    request<AlphaJobSnapshot<AlphaBenchResult>>(
+      `/alpha/bench/${encodeURIComponent(jobId)}`,
+      {},
+      METADATA_TIMEOUT_MS,
+    ),
+  getAlphaCompareJob: (jobId: string) =>
+    request<AlphaJobSnapshot<AlphaCompareResult>>(
+      `/alpha/compare/${encodeURIComponent(jobId)}`,
+      {},
+      METADATA_TIMEOUT_MS,
+    ),
   listAlphas: (params: AlphaListParams = {}) => {
     const q = new URLSearchParams();
     if (params.zoo) q.set("zoo", params.zoo);
@@ -888,9 +1364,12 @@ export const api = {
   // Connector runtime channel — privileged surface actions (NOT agent tools).
   // commit is the ONLY action that writes a mandate; halt trips the kill switch.
   getLiveAccounts: (broker: string) =>
-    request<{ status: string; broker: string; account_selection_required: boolean; accounts: BrokerAccountChoice[] }>(
-      `/live/accounts?broker=${encodeURIComponent(broker)}`,
-    ),
+    request<{
+      status: string;
+      broker: string;
+      account_selection_required: boolean;
+      accounts: BrokerAccountChoice[];
+    }>(`/live/accounts?broker=${encodeURIComponent(broker)}`),
   commitMandate: (body: CommitMandateRequest) =>
     request<CommitMandateResponse>("/mandate/commit", {
       method: "POST",
@@ -908,11 +1387,15 @@ export const api = {
     }),
   // Read the persistent runtime status across all authorized brokers (SPEC §7.5).
   // Polled by the RunnerStatus panel; a plain authenticated GET, never a chat message.
-  getLiveStatus: (signal?: AbortSignal) => request<LiveStatus>("/live/status", { signal }),
+  getLiveStatus: (signal?: AbortSignal) =>
+    request<LiveStatus>("/live/status", { signal }),
   verifyConnector: (profileId: string) =>
-    request<ConnectorVerifyResponse>(`/live/connectors/${encodeURIComponent(profileId)}/verify?force=true`, {
-      method: "POST",
-    }),
+    request<ConnectorVerifyResponse>(
+      `/live/connectors/${encodeURIComponent(profileId)}/verify?force=true`,
+      {
+        method: "POST",
+      },
+    ),
   authorizeLive: (broker: string) =>
     request<LiveAuthorizeResponse>("/live/authorize", {
       method: "POST",
@@ -1016,7 +1499,11 @@ export interface ScheduledResearchProposalJob {
   id: string;
   title: string;
   state: string;
-  source: { kind: string; playbook_slug?: string | null; prompt?: string | null };
+  source: {
+    kind: string;
+    playbook_slug?: string | null;
+    prompt?: string | null;
+  };
   schedule: {
     expression: string;
     timezone: string | null;
@@ -1401,7 +1888,12 @@ export interface RebalanceNotesPayload {
     turnover: number;
     entries?: Array<{ code: string; to: number }>;
     exits?: Array<{ code: string; from: number }>;
-    top_moves?: Array<{ code: string; from: number; to: number; delta: number }>;
+    top_moves?: Array<{
+      code: string;
+      from: number;
+      to: number;
+      delta: number;
+    }>;
   }>;
   summary?: {
     target_change_count: number;
@@ -1592,9 +2084,14 @@ export interface SectorMapResponse {
  * Uses the same auth-header + error-envelope conventions as every other
  * fetcher in this module (via the shared `request` helper).
  */
-export function fetchRunSectorMap(runId: string, refresh?: boolean): Promise<SectorMapResponse> {
+export function fetchRunSectorMap(
+  runId: string,
+  refresh?: boolean,
+): Promise<SectorMapResponse> {
   const qs = refresh ? "?refresh=1" : "";
-  return request<SectorMapResponse>(`/runs/${encodeURIComponent(runId)}/positions/sectors${qs}`);
+  return request<SectorMapResponse>(
+    `/runs/${encodeURIComponent(runId)}/positions/sectors${qs}`,
+  );
 }
 
 export interface RunCardToolTrace {
@@ -1650,7 +2147,6 @@ export interface BacktestMetrics {
   trade_count: number;
   [key: string]: number;
 }
-
 
 export interface IndicatorPoint {
   time: string;
@@ -1910,12 +2406,34 @@ export interface AlphaBenchRequest {
 }
 
 export interface AlphaReadiness {
-  universes: Record<string, { ready: boolean; reason: "public_data" | "tushare_ready" | "tushare_token_missing" | "tushare_dependency_missing" | "single_asset" }>;
+  universes: Record<
+    string,
+    {
+      ready: boolean;
+      reason:
+        | "public_data"
+        | "tushare_ready"
+        | "tushare_token_missing"
+        | "tushare_dependency_missing"
+        | "single_asset";
+    }
+  >;
   zoo_counts: Record<string, number>;
 }
 
-export interface AlphaProgress { n_done: number; n_total: number; current_alpha_id?: string; stage?: "loading_data" | "preparing_returns" | "computing" }
-export interface AlphaJobSnapshot<T> { job_id: string; status: "queued" | "running" | "done" | "error"; progress: AlphaProgress; result: T | null; error: string | null }
+export interface AlphaProgress {
+  n_done: number;
+  n_total: number;
+  current_alpha_id?: string;
+  stage?: "loading_data" | "preparing_returns" | "computing";
+}
+export interface AlphaJobSnapshot<T> {
+  job_id: string;
+  status: "queued" | "running" | "done" | "error";
+  progress: AlphaProgress;
+  result: T | null;
+  error: string | null;
+}
 
 export interface AlphaBenchTopRow {
   id: string;

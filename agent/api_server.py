@@ -260,7 +260,11 @@ register_connection_routes(app)
 from src.api.paper_trading_routes import register_paper_trading_routes  # noqa: E402
 register_paper_trading_routes(app)
 
-# --- Native Vibe market board (read-only, paper-only) ---
+# --- AI-Trader-compatible community, trading and social core ---
+from src.api.community_routes import register_community_routes  # noqa: E402
+register_community_routes(app)
+
+# --- Native Vibe market board ---
 from src.api.market_routes import register_market_routes  # noqa: E402
 register_market_routes(app)
 

@@ -35,8 +35,9 @@ def test_native_market_combines_paper_data_and_focus_activity(monkeypatch) -> No
     assert response.status_code == 200
     body = response.json()
     assert body["mode"] == "native"
-    assert body["live_trading_enabled"] is False
-    assert body["capabilities"]["live_orders"] is False
+    assert body["paper_only"] is False
+    assert body["live_trading_enabled"] is True
+    assert body["capabilities"]["live_orders"] is True
     assert body["total"] == 2
     assert {item["kind"] for item in body["items"]} == {"position", "strategy"}
     assert next(item for item in body["trending"] if item["symbol"] == "BTC")["event_count"] == 6

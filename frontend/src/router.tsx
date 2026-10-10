@@ -46,6 +46,14 @@ const AlphaZoo = lazy(() =>
 const OptionsLab = lazy(() =>
   import("@/pages/OptionsLab").then((m) => ({ default: m.OptionsLab })),
 );
+const Leaderboard = lazy(() => import("@/pages/Community").then((m) => ({ default: m.Leaderboard })));
+const Strategies = lazy(() => import("@/pages/Community").then((m) => ({ default: () => <m.CommunityFeed type="strategy" /> })));
+const Discussions = lazy(() => import("@/pages/Community").then((m) => ({ default: () => <m.CommunityFeed type="discussion" /> })));
+const Positions = lazy(() => import("@/pages/Community").then((m) => ({ default: m.Positions })));
+const Trade = lazy(() => import("@/pages/Community").then((m) => ({ default: m.Trade })));
+const Exchange = lazy(() => import("@/pages/Community").then((m) => ({ default: m.Exchange })));
+const CopyTrading = lazy(() => import("@/pages/Community").then((m) => ({ default: m.CopyTrading })));
+const Challenges = lazy(() => import("@/pages/Community").then((m) => ({ default: m.Challenges })));
 
 function PageLoader() {
   return (
@@ -76,6 +84,14 @@ export const router = createBrowserRouter([
       { path: "/portfolio", element: wrap(Portfolio) },
       { path: "/paper-trading", element: wrap(PaperTrading) },
       { path: "/market", element: wrap(Market) },
+      { path: "/leaderboard", element: wrap(Leaderboard) },
+      { path: "/challenges", element: wrap(Challenges) },
+      { path: "/copy-trading", element: wrap(CopyTrading) },
+      { path: "/strategies", element: wrap(Strategies) },
+      { path: "/discussions", element: wrap(Discussions) },
+      { path: "/positions", element: wrap(Positions) },
+      { path: "/trade", element: wrap(Trade) },
+      { path: "/exchange", element: wrap(Exchange) },
       { path: "/financial-events", element: wrap(FinancialEvents) },
       { path: "/roadmap", element: wrap(TradingRoadmap) },
       { path: "/settings", element: wrap(Settings) },

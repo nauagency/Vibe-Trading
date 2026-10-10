@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Bot, CalendarClock, CandlestickChart, FileText, Flame, FlaskConical, Layers, Map, Newspaper, Settings, WalletCards } from "lucide-react";
+import { Activity, BarChart3, Bot, CalendarClock, CandlestickChart, ClipboardCopy, FileText, Flame, FlaskConical, Gift, Layers, Map, MessageCircle, Newspaper, Settings, Swords, Trophy, WalletCards } from "lucide-react";
 
 export const NAVIGATION_GROUPS = [
   { id: "research", items: [
@@ -7,6 +7,14 @@ export const NAVIGATION_GROUPS = [
     { id: "reports", to: "/reports", icon: FileText },
     { id: "financialEvents", to: "/financial-events", icon: Newspaper },
     { id: "market", to: "/market", icon: Flame },
+    { id: "leaderboard", to: "/leaderboard", icon: Trophy },
+    { id: "challenges", to: "/challenges", icon: Swords },
+    { id: "copyTrading", to: "/copy-trading", icon: ClipboardCopy },
+    { id: "strategies", to: "/strategies", icon: BarChart3 },
+    { id: "discussions", to: "/discussions", icon: MessageCircle },
+    { id: "positions", to: "/positions", icon: WalletCards },
+    { id: "trade", to: "/trade", icon: CandlestickChart },
+    { id: "exchange", to: "/exchange", icon: Gift },
     { id: "paperTrading", to: "/paper-trading", icon: FlaskConical },
     { id: "portfolio", to: "/portfolio", icon: WalletCards },
   ] },

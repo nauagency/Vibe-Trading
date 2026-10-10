@@ -335,6 +335,15 @@ def register_financial_events_routes(app: FastAPI) -> None:
     async def market_intel_etf_flows():
         return await asyncio.to_thread(build_etf_flows)
 
+    @app.get("/api/market-intel/overview", dependencies=[Depends(require_auth)])
+    async def market_intel_overview(locale: str = "en"):
+        macro, etf, stocks = await asyncio.gather(
+            asyncio.to_thread(build_macro_signals),
+            asyncio.to_thread(build_etf_flows),
+            asyncio.to_thread(featured_stocks, 6),
+        )
+        return {"available": bool(macro.get("available") or etf.get("available") or stocks.get("available")), "macro": macro, "etf_flows": etf, "featured_stocks": stocks, "locale": locale, "created_at": datetime.now(timezone.utc).isoformat()}
+
     @app.get("/api/market-intel/news", dependencies=[Depends(require_auth)])
     async def market_intel_news(category: str | None = None, limit: int = 5, locale: str = "en"):
         selected = [category] if category in _NEWS_CATEGORIES else list(_NEWS_CATEGORIES)
