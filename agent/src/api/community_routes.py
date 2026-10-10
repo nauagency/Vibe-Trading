@@ -107,7 +107,7 @@ def register_community_routes(app: FastAPI) -> None:
         groups = list(by_agent.values())[offset:offset + max(1, min(limit, 100))]
         return {"groups": groups, "agents": groups, "total": len(by_agent), "limit": limit, "offset": offset}
 
-    @app.get("/api/signals/{agent_id}", dependencies=auth)
+    @app.get("/api/signals/{agent_id:int}", dependencies=auth)
     async def agent_signals(agent_id: int, message_type: str | None = None, limit: int = 50):
         payload = list_signals(message_type, "all", 500, 0)
         rows = [item for item in payload["signals"] if item["agent_id"] == agent_id][:limit]

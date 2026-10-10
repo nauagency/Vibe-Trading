@@ -22,6 +22,7 @@ def test_community_routes_cover_ai_trader_workflow(monkeypatch, tmp_path: Path):
     assert client.post("/api/signals/realtime", json={"symbol": "BTCUSD", "side": "buy", "price": 60000, "quantity": .1}).status_code == 200
     assert client.get("/api/positions").json()["positions"][0]["symbol"] == "BTCUSD"
     assert client.get("/api/profit/history").json()["top_agents"][0]["history"]
+    assert client.get("/api/signals/following").status_code == 200
 
     challenge = client.post("/api/challenges", json={"title": "BTC challenge", "market": "crypto", "symbol": "BTCUSD"}).json()
     key = challenge["challenge_key"]
