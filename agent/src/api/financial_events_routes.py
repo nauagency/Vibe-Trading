@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import html
+import json
 import re
 from datetime import datetime, timezone
 from typing import Any
@@ -16,11 +17,19 @@ from fastapi import Depends, FastAPI
 from src.api.security import require_auth
 
 _FEED_URL = "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
-_LANES = (
-    ("BTC", "Bitcoin cryptocurrency market when:2d"),
-    ("XAU", "gold XAUUSD Federal Reserve inflation when:2d"),
-    ("EURUSD", "EURUSD ECB Federal Reserve forex when:2d"),
-    ("MACRO", "Federal Reserve CPI inflation jobs interest rates when:2d"),
+_FOREX_FACTORY_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+_FOREX_FACTORY_CALENDAR = "https://www.forexfactory.com/calendar"
+_CORE_SECTIONS = (
+    ("macro-signals", "Macro signals", "Federal Reserve CPI inflation jobs interest rates economic outlook when:2d"),
+    ("etf-flows", "ETF flows", "ETF inflows outflows fund flows Bitcoin gold equities when:2d"),
+    ("featured-stocks", "Featured stocks", "US stocks market movers earnings analyst upgrades when:2d"),
+    ("financial-news", "Financial news", "global financial markets economy stocks commodities currencies when:2d"),
+)
+_ASSET_LANES = (
+    ("xau", "XAU", "gold XAUUSD Federal Reserve inflation when:2d"),
+    ("btc", "BTC", "Bitcoin cryptocurrency market when:2d"),
+    ("usoil", "USOIL", "WTI crude oil USOIL OPEC inventory when:2d"),
+    ("eurusd", "EURUSD", "EURUSD ECB Federal Reserve forex when:2d"),
 )
 _TAG_RE = re.compile(r"<[^>]+>")
 
@@ -50,14 +59,69 @@ def _load_feed(query: str, limit: int = 8) -> list[dict[str, Any]]:
     return [item for item in items if item["title"] and item["url"]]
 
 
-async def _lane(name: str, query: str) -> dict[str, Any]:
+def _load_forex_factory() -> list[dict[str, Any]]:
+    request = Request(
+        _FOREX_FACTORY_URL,
+        headers={"User-Agent": "Vibe-Trading/0.1 financial-events"},
+    )
+    with urlopen(request, timeout=10) as response:  # noqa: S310 - fixed HTTPS host
+        payload = json.loads(response.read().decode("utf-8"))
+    if not isinstance(payload, list):
+        return []
+    events: list[dict[str, Any]] = []
+    for raw in payload:
+        if not isinstance(raw, dict) or not raw.get("title"):
+            continue
+        country = str(raw.get("country") or "").upper()
+        impact = str(raw.get("impact") or "")
+        details = [
+            f"Actual: {raw['actual']}" if raw.get("actual") else "",
+            f"Forecast: {raw['forecast']}" if raw.get("forecast") else "",
+            f"Previous: {raw['previous']}" if raw.get("previous") else "",
+        ]
+        events.append({
+            "title": _clean(str(raw["title"])),
+            "url": _FOREX_FACTORY_CALENDAR,
+            "source": "Forex Factory",
+            "published": str(raw.get("date") or ""),
+            "summary": " · ".join(part for part in details if part),
+            "country": country,
+            "impact": impact,
+            "event_type": "economic-calendar",
+        })
+    impact_order = {"high": 0, "medium": 1, "low": 2, "holiday": 3}
+    return sorted(events, key=lambda item: (impact_order.get(str(item["impact"]).lower(), 4), item["published"]))
+
+
+def _forex_factory_for(feed_id: str, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if feed_id == "macro-signals":
+        return events[:12]
+    if feed_id == "financial-news":
+        return [item for item in events if str(item.get("impact", "")).lower() == "high"][:8]
+    if feed_id == "xau":
+        countries, impacts = {"USD"}, {"high", "medium"}
+    elif feed_id == "btc":
+        countries, impacts = {"USD"}, {"high"}
+    elif feed_id == "usoil":
+        countries, impacts = {"USD", "CAD"}, {"high", "medium"}
+    elif feed_id == "eurusd":
+        countries, impacts = {"USD", "EUR"}, {"high", "medium"}
+    else:
+        return []
+    return [
+        item for item in events
+        if item.get("country") in countries and str(item.get("impact", "")).lower() in impacts
+    ][:8]
+
+
+async def _feed(feed_id: str, label: str, query: str) -> dict[str, Any]:
     try:
         items = await asyncio.to_thread(_load_feed, query)
-        return {"id": name.lower(), "label": name, "available": True, "items": items}
+        return {"id": feed_id, "label": label, "available": True, "items": items}
     except Exception as exc:  # noqa: BLE001 - one failed source must not break the board
         return {
-            "id": name.lower(),
-            "label": name,
+            "id": feed_id,
+            "label": label,
             "available": False,
             "items": [],
             "error": f"feed_unavailable:{type(exc).__name__}",
@@ -69,12 +133,30 @@ def register_financial_events_routes(app: FastAPI) -> None:
 
     @app.get("/api/financial-events", dependencies=[Depends(require_auth)])
     async def financial_events_dashboard():
-        lanes = list(await asyncio.gather(*(_lane(name, query) for name, query in _LANES)))
+        sections, assets, forex_factory = await asyncio.gather(
+            asyncio.gather(*(_feed(feed_id, label, query) for feed_id, label, query in _CORE_SECTIONS)),
+            asyncio.gather(*(_feed(feed_id, label, query) for feed_id, label, query in _ASSET_LANES)),
+            asyncio.to_thread(_load_forex_factory),
+            return_exceptions=True,
+        )
+        sections = list(sections) if not isinstance(sections, Exception) else []
+        assets = list(assets) if not isinstance(assets, Exception) else []
+        forex_factory = [] if isinstance(forex_factory, Exception) else list(forex_factory)
+        for feed in [*sections, *assets]:
+            priority_items = _forex_factory_for(feed["id"], forex_factory)
+            if priority_items:
+                feed["items"] = [*priority_items, *feed["items"]]
+                feed["sources"] = ["Forex Factory", "Google News RSS"]
+            else:
+                feed["sources"] = ["Google News RSS"]
         return {
             "mode": "native",
             "read_only": True,
-            "provider": "Google News RSS",
-            "lanes": lanes,
-            "total_items": sum(len(lane["items"]) for lane in lanes),
+            "provider": "Forex Factory + Google News RSS",
+            "priority_provider": "Forex Factory",
+            "sections": sections,
+            "assets": assets,
+            "lanes": assets,
+            "total_items": sum(len(feed["items"]) for feed in [*sections, *assets]),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }

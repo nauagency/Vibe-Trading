@@ -19,7 +19,7 @@
     "startResearch": "Start with the research assistant",
     "descriptions": {
       "roadmap": "Follow the complete path from a trading idea to controlled paper execution.",
-      "financialEvents": "Track news and events that may affect BTC, XAU, EURUSD, and the macro backdrop.",
+      "financialEvents": "Track news and events that may affect XAU, BTC, USOIL, EURUSD, and the macro backdrop.",
       "paperTrading": "Monitor strategies and simulated positions directly inside Vibe-Trading.",
       "agent": "Ask a research question or describe a strategy in your own words.",
       "reports": "Review and compare completed backtests.",
@@ -130,11 +130,23 @@
   "financialEvents": {
     "badge": "Read-only data · no orders",
     "title": "Financial events",
-    "subtitle": "A market-impact feed for BTC, XAU, EURUSD, and macro context, running directly inside Vibe-Trading.",
+    "subtitle": "A market-impact feed for XAU, BTC, USOIL, EURUSD, and macro context, running directly inside Vibe-Trading.",
     "refresh": "Refresh",
     "error": "Cannot load financial events.",
     "provider": "Aggregated source: {{provider}}",
+    "priority": "Priority: {{provider}}",
+    "prioritySource": "Priority source",
     "native": "Standalone",
+    "originalTitle": "Original market board",
+    "originalHint": "The four AI-Trader categories are preserved, but Vibe-Trading now fetches and renders them independently.",
+    "assetsTitle": "Focus markets",
+    "assetsHint": "News and economic-calendar events are classified for XAU, BTC, USOIL, and EURUSD.",
+    "sections": {
+      "macro-signals": "Macro signals",
+      "etf-flows": "ETF flows",
+      "featured-stocks": "Featured stock analysis",
+      "financial-news": "Multi-category financial news"
+    },
     "itemCount": "{{count}} events",
     "unknownSource": "Unknown source",
     "noItems": "No recent events.",

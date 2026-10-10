@@ -166,21 +166,30 @@ export interface FinancialEventItem {
   source: string;
   published: string;
   summary: string;
+  country?: string;
+  impact?: string;
+  event_type?: string;
 }
 
 export interface FinancialEventsDashboard {
   mode: "native";
   read_only: true;
   provider: string;
-  lanes: Array<{
+  priority_provider: string;
+  sections: FinancialEventFeed[];
+  assets: FinancialEventFeed[];
+  lanes: FinancialEventFeed[];
+  total_items: number;
+  updated_at: string;
+}
+
+export interface FinancialEventFeed {
     id: string;
     label: string;
     available: boolean;
     items: FinancialEventItem[];
     error?: string;
-  }>;
-  total_items: number;
-  updated_at: string;
+    sources?: string[];
 }
 
 const AUTH_REQUIRED_MESSAGE_KEY = "agent.authRequired";
