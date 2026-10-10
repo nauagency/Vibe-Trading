@@ -20,6 +20,7 @@
     "descriptions": {
       "roadmap": "Follow the complete path from a trading idea to controlled paper execution.",
       "financialEvents": "Track news and events that may affect XAU, BTC, USOIL, EURUSD, and the macro backdrop.",
+      "market": "Browse native Vibe strategies, paper positions, and activity across focus markets.",
       "paperTrading": "Monitor strategies and simulated positions directly inside Vibe-Trading.",
       "agent": "Ask a research question or describe a strategy in your own words.",
       "reports": "Review and compare completed backtests.",
@@ -34,6 +35,7 @@
     "instructions": {
       "roadmap": "Move through each quality gate in order. A strategy only reaches paper trading after data, backtest, out-of-sample validation, and risk review.",
       "financialEvents": "Review the latest events before research or enabling a paper strategy. Open the original article to verify details and publication time.",
+      "market": "Filter the native feed by market, review backtest strategies and paper positions, then use the trend panel to see where research activity is concentrated.",
       "paperTrading": "Backtest in Vibe-Trading, review approved paper candidates here, and monitor simulated positions. Live orders remain disabled.",
       "reports": "Ask the research assistant to backtest a strategy first, then open its results here. Download PDFs and other chat-generated documents from the original conversation.",
       "portfolio": "Add and enable an account source, then refresh its holdings. This page provides a read-only account overview.",
@@ -48,6 +50,7 @@
   "layout": {
     "roadmap": "Trading roadmap",
     "financialEvents": "Financial events",
+    "market": "Market",
     "paperTrading": "Paper trading",
     "home": "Home",
     "agent": "Research assistant",
@@ -126,6 +129,38 @@
     "noPositionsHint": "Approved strategies stay in monitoring until an eligible market signal is generated.",
     "safetyTitle": "Safety:",
     "safetyBody": "This workspace is read-only and paper-only. It cannot connect a broker or place a real-money order. XAU and Forex remain research-only until their paper execution engine is implemented."
+  },
+  "market": {
+    "badge": "Read-only · paper-only",
+    "title": "Market",
+    "subtitle": "Vibe-Trading's native board for research signals, backtest strategies, simulated positions, and focus-market activity.",
+    "refresh": "Refresh",
+    "error": "Cannot load the market board.",
+    "signals": "Paper signals",
+    "strategies": "Strategies",
+    "positions": "Open positions",
+    "equity": "Paper equity",
+    "filtersLabel": "Market filters",
+    "filters": {
+      "all": "All",
+      "crypto": "Crypto",
+      "metals": "Metals",
+      "forex": "Forex",
+      "energy": "Energy",
+      "us-stock": "US stocks",
+      "prediction": "Prediction markets"
+    },
+    "feedTitle": "Market activity",
+    "feedHint": "Completed Vibe backtests and native paper positions appear here automatically.",
+    "emptyTitle": "No activity in this market yet",
+    "emptyHint": "Run a backtest or open a simulated paper position to add it to this feed.",
+    "trending": "Trending",
+    "trendingHint": "Ranked by positions, strategies, and recent market events.",
+    "trendStats": "{{events}} events · {{signals}} signals · {{positions}} positions",
+    "kinds": { "position": "Paper position", "strategy": "Strategy" },
+    "quantity": "Qty",
+    "safetyTitle": "Safety:",
+    "safetyBody": "This market board is read-only and paper-only. It has no AI-Trader dependency and cannot place real-money orders."
   },
   "financialEvents": {
     "badge": "Read-only data · no orders",

@@ -160,6 +160,46 @@ export interface PaperTradingDashboard {
   updated_at: string;
 }
 
+export interface MarketItem {
+  id: string;
+  kind: "position" | "strategy";
+  market: string;
+  title: string;
+  content: string;
+  symbols: string[];
+  side: string | null;
+  quantity: number | null;
+  price: number | null;
+  pnl: number | null;
+  tags: string[];
+  created_at: string;
+}
+
+export interface MarketTrend {
+  symbol: string;
+  market: string;
+  event_count: number;
+  signal_count: number;
+  position_count: number;
+  current_price: number | null;
+  latest_event_at: string;
+}
+
+export interface MarketDashboard {
+  mode: "native";
+  read_only: true;
+  paper_only: true;
+  live_trading_enabled: false;
+  selected_market: string;
+  items: MarketItem[];
+  total: number;
+  counts: Record<string, number>;
+  trending: MarketTrend[];
+  account: { cash: number; equity: number; open_positions: number };
+  capabilities: { signals: boolean; strategies: boolean; paper_positions: boolean; live_orders: false };
+  updated_at: string;
+}
+
 export interface FinancialEventItem {
   title: string;
   url: string;
@@ -552,6 +592,7 @@ function appendQueryParam(url: string, key: string, value: string): string {
 
 export const api = {
   getPaperTrading: () => request<PaperTradingDashboard>("/api/paper-trading", undefined, METADATA_TIMEOUT_MS),
+  getMarket: (market = "all") => request<MarketDashboard>(`/api/market?market=${encodeURIComponent(market)}`, undefined, REQUEST_TIMEOUT_MS),
   getFinancialEvents: (locale: "en" | "vi" = "en") => request<FinancialEventsDashboard>(`/api/financial-events?locale=${locale}`),
   uploadFile,
   getCorrelationAnalysis: (codes: string, days: number, method: "pearson" | "spearman", includeRegime: boolean, signal?: AbortSignal) =>

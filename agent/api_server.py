@@ -260,6 +260,10 @@ register_connection_routes(app)
 from src.api.paper_trading_routes import register_paper_trading_routes  # noqa: E402
 register_paper_trading_routes(app)
 
+# --- Native Vibe market board (read-only, paper-only) ---
+from src.api.market_routes import register_market_routes  # noqa: E402
+register_market_routes(app)
+
 # --- Native market-moving financial events (read-only) ---
 from src.api.financial_events_routes import register_financial_events_routes  # noqa: E402
 register_financial_events_routes(app)

@@ -20,6 +20,7 @@
     "descriptions": {
       "roadmap": "Đi theo toàn bộ quy trình từ ý tưởng giao dịch đến thực thi paper có kiểm soát.",
       "financialEvents": "Theo dõi tin tức và sự kiện có thể tác động đến XAU, BTC, USOIL, EURUSD và bối cảnh vĩ mô.",
+      "market": "Theo dõi chiến lược native, vị thế paper và hoạt động trên các thị trường trọng tâm của Vibe.",
       "paperTrading": "Theo dõi chiến lược và vị thế mô phỏng trực tiếp trong Vibe-Trading.",
       "agent": "Đặt câu hỏi nghiên cứu hoặc mô tả một chiến lược bằng lời của bạn.",
       "reports": "Xem lại và so sánh các bài kiểm tra ngược đã hoàn thành.",
@@ -34,6 +35,7 @@
     "instructions": {
       "roadmap": "Đi lần lượt qua từng cổng kiểm định. Chiến lược chỉ được sang paper sau khi đã kiểm tra dữ liệu, backtest, out-of-sample và rủi ro.",
       "financialEvents": "Đọc các sự kiện mới nhất trước khi nghiên cứu hoặc bật một chiến lược paper. Mở bài gốc để kiểm tra chi tiết và thời điểm công bố.",
+      "market": "Lọc bảng hoạt động theo thị trường, xem chiến lược backtest và vị thế paper, sau đó dùng bảng xu hướng để nhận biết nơi hoạt động nghiên cứu tập trung.",
       "paperTrading": "Backtest trong Vibe-Trading, duyệt ứng viên paper tại đây và theo dõi vị thế mô phỏng. Lệnh tiền thật luôn bị tắt.",
       "reports": "Yêu cầu trợ lý nghiên cứu backtest một chiến lược trước, sau đó mở kết quả tại đây. Tải xuống PDF và các tài liệu khác do chat tạo từ cuộc trò chuyện gốc.",
       "portfolio": "Thêm và bật một nguồn tài khoản, sau đó làm mới các khoản nắm giữ của nó. Trang này cung cấp cái nhìn tổng quan về tài khoản chỉ đọc.",
@@ -48,6 +50,7 @@
   "layout": {
     "roadmap": "Lộ trình giao dịch",
     "financialEvents": "Sự kiện tài chính",
+    "market": "Thị trường",
     "paperTrading": "Paper Trading",
     "home": "Trang chủ",
     "agent": "Trợ lý nghiên cứu",
@@ -126,6 +129,38 @@
     "noPositionsHint": "Chiến lược đã duyệt được theo dõi cho đến khi có tín hiệu thuộc thị trường đủ điều kiện.",
     "safetyTitle": "An toàn:",
     "safetyBody": "Khu vực này chỉ đọc và chỉ dùng paper. Nó không thể kết nối broker hoặc đặt lệnh tiền thật. XAU và Forex vẫn chỉ ở chế độ nghiên cứu cho đến khi có engine thực thi mô phỏng riêng."
+  },
+  "market": {
+    "badge": "Chỉ đọc · chỉ paper",
+    "title": "Thị trường",
+    "subtitle": "Bảng native của Vibe-Trading dành cho tín hiệu nghiên cứu, chiến lược backtest, vị thế mô phỏng và hoạt động tại các thị trường trọng tâm.",
+    "refresh": "Làm mới",
+    "error": "Không thể tải bảng thị trường.",
+    "signals": "Tín hiệu paper",
+    "strategies": "Chiến lược",
+    "positions": "Vị thế đang mở",
+    "equity": "Giá trị paper",
+    "filtersLabel": "Bộ lọc thị trường",
+    "filters": {
+      "all": "Tất cả",
+      "crypto": "Tiền mã hóa",
+      "metals": "Kim loại",
+      "forex": "Ngoại hối",
+      "energy": "Năng lượng",
+      "us-stock": "Cổ phiếu Mỹ",
+      "prediction": "Thị trường dự đoán"
+    },
+    "feedTitle": "Hoạt động thị trường",
+    "feedHint": "Backtest hoàn thành và vị thế paper native của Vibe tự động xuất hiện tại đây.",
+    "emptyTitle": "Chưa có hoạt động trong thị trường này",
+    "emptyHint": "Chạy một backtest hoặc mở vị thế paper mô phỏng để đưa dữ liệu vào bảng.",
+    "trending": "Xu hướng",
+    "trendingHint": "Xếp hạng theo vị thế, chiến lược và sự kiện thị trường gần đây.",
+    "trendStats": "{{events}} sự kiện · {{signals}} tín hiệu · {{positions}} vị thế",
+    "kinds": { "position": "Vị thế paper", "strategy": "Chiến lược" },
+    "quantity": "Khối lượng",
+    "safetyTitle": "An toàn:",
+    "safetyBody": "Bảng thị trường này chỉ đọc và chỉ dùng paper. Nó không phụ thuộc AI-Trader và không thể đặt lệnh tiền thật."
   },
   "financialEvents": {
     "badge": "Dữ liệu chỉ đọc · không đặt lệnh",
