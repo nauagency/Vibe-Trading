@@ -234,6 +234,32 @@ export interface FinancialEventFeed {
     sources?: string[];
 }
 
+export interface MacroSignal {
+  id: string; label: string; status: string; value: number | null; unit?: string;
+  explanation: string; as_of?: string;
+}
+export interface MacroSignalsPayload {
+  available: boolean; verdict: string; bullish_count: number; defensive_count?: number;
+  total_count: number; signals: MacroSignal[]; created_at: string | null;
+}
+export interface EtfFlowPayload {
+  available: boolean;
+  summary: { direction?: string; summary?: string; inflow_count?: number; outflow_count?: number; tracked_count?: number; net_score?: number };
+  etfs: Array<{ symbol: string; price_change_pct: number; volume_ratio: number; estimated_flow_score: number; direction: string; as_of: string }>;
+  created_at: string | null; is_estimated: boolean;
+}
+export interface StockAnalysis {
+  available: boolean; symbol: string; current_price?: number; currency?: string; signal?: string;
+  signal_score?: number; trend_status?: string; support_levels?: number[]; resistance_levels?: number[];
+  bullish_factors?: string[]; risk_factors?: string[]; summary?: string; created_at?: string;
+  price_state?: string; price_source?: string; price_as_of?: string;
+  analysis?: { return_5d_pct?: number; return_20d_pct?: number; distance_to_support_pct?: number; distance_to_resistance_pct?: number; moving_averages?: Record<string, number | null> };
+}
+export interface MarketNewsPayload {
+  available: boolean; localized: boolean; created_at: string;
+  sections: Array<{ category: string; label: string; description: string; available: boolean; created_at: string; summary: { item_count: number; activity_level: string }; items: Array<FinancialEventItem & { overall_sentiment_label?: string; ticker_sentiment?: Array<{ ticker: string }> }> }>;
+}
+
 const AUTH_REQUIRED_MESSAGE_KEY = "agent.authRequired";
 
 function getAuthRequiredMessage(): string {
@@ -594,6 +620,12 @@ export const api = {
   getPaperTrading: () => request<PaperTradingDashboard>("/api/paper-trading", undefined, METADATA_TIMEOUT_MS),
   getMarket: (market = "all") => request<MarketDashboard>(`/api/market?market=${encodeURIComponent(market)}`, undefined, REQUEST_TIMEOUT_MS),
   getFinancialEvents: (locale: "en" | "vi" = "en") => request<FinancialEventsDashboard>(`/api/financial-events?locale=${locale}`),
+  getMacroSignals: () => request<MacroSignalsPayload>("/api/market-intel/macro-signals", undefined, REQUEST_TIMEOUT_MS),
+  getEtfFlows: () => request<EtfFlowPayload>("/api/market-intel/etf-flows", undefined, REQUEST_TIMEOUT_MS),
+  getFeaturedStocks: (limit = 6) => request<{ available: boolean; items: StockAnalysis[] }>(`/api/market-intel/stocks/featured?limit=${limit}`, undefined, REQUEST_TIMEOUT_MS),
+  getStockAnalysis: (symbol: string) => request<StockAnalysis>(`/api/market-intel/stocks/${encodeURIComponent(symbol)}/latest`, undefined, REQUEST_TIMEOUT_MS),
+  getStockHistory: (symbol: string, limit = 6) => request<{ available: boolean; symbol: string; history: StockAnalysis[] }>(`/api/market-intel/stocks/${encodeURIComponent(symbol)}/history?limit=${limit}`, undefined, REQUEST_TIMEOUT_MS),
+  getMarketNews: (locale: "en" | "vi" = "en", category?: string, limit = 12) => request<MarketNewsPayload>(`/api/market-intel/news?locale=${locale}&limit=${limit}${category ? `&category=${encodeURIComponent(category)}` : ""}`, undefined, REQUEST_TIMEOUT_MS),
   uploadFile,
   getCorrelationAnalysis: (codes: string, days: number, method: "pearson" | "spearman", includeRegime: boolean, signal?: AbortSignal) =>
     request<CorrelationAnalysisResponse>(`/correlation/analysis?${new URLSearchParams({ codes, days: String(days), method, include_regime: String(includeRegime) })}`, { signal }),

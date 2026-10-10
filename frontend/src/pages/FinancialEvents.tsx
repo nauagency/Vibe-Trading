@@ -1,88 +1,75 @@
-import { useEffect, useState } from "react";
-import { AlertTriangle, ExternalLink, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, ExternalLink, History, Loader2, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { api, type FinancialEventFeed, type FinancialEventsDashboard } from "@/lib/api";
+import { api, type EtfFlowPayload, type FinancialEventFeed, type FinancialEventsDashboard, type MacroSignalsPayload, type MarketNewsPayload, type StockAnalysis } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
-function formatTime(value: string, locale: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
+const PAGE_SIZE = 5;
+const TEXT = {
+  vi: { title: "Sự kiện & phân tích thị trường", subtitle: "Tín hiệu vĩ mô, dòng tiền ETF, phân tích cổ phiếu và tin tức; bổ sung lịch Forex Factory ưu tiên cùng XAU, BTC, USOIL, EURUSD.", macro: "Tín hiệu vĩ mô", etf: "Dòng tiền ETF Bitcoin", stocks: "Phân tích cổ phiếu nổi bật", news: "Tin tức tài chính", focus: "Lịch kinh tế & thị trường trọng tâm", refresh: "Làm mới", history: "Lịch sử phân tích", factors: "Yếu tố tích cực", risks: "Rủi ro", support: "Hỗ trợ", resistance: "Kháng cự", delayed: "Giá có thể bị trễ", noData: "Chưa có dữ liệu", previous: "Trước", next: "Sau" },
+  en: { title: "Market events & intelligence", subtitle: "Macro signals, ETF flows, stock analysis and news, plus priority Forex Factory events for XAU, BTC, USOIL and EURUSD.", macro: "Macro signals", etf: "Bitcoin ETF flows", stocks: "Featured stock analysis", news: "Financial news", focus: "Economic calendar & focus markets", refresh: "Refresh", history: "Analysis history", factors: "Bullish factors", risks: "Risk factors", support: "Support", resistance: "Resistance", delayed: "Prices may be delayed", noData: "No data available", previous: "Previous", next: "Next" },
+};
+
+function money(value?: number) { return value == null ? "—" : new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value); }
+function pct(value?: number) { return value == null ? "—" : `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`; }
+function tone(value?: string) { return value === "bullish" || value === "buy" || value === "inflow" || value === "risk_on" || value === "constructive" ? "text-positive" : value === "defensive" || value === "sell" || value === "outflow" || value === "risk_off" ? "text-danger" : "text-warning"; }
+function formatTime(value: string, locale: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(locale === "vi" ? "vi-VN" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(date); }
 
 export function FinancialEvents() {
-  const { t, i18n } = useTranslation();
-  const locale: "vi" | "en" = i18n.resolvedLanguage?.toLowerCase().startsWith("vi") ? "vi" : "en";
-  const [data, setData] = useState<FinancialEventsDashboard | null>(null);
+  const { i18n } = useTranslation();
+  const locale: "vi" | "en" = i18n.resolvedLanguage?.startsWith("vi") ? "vi" : "en";
+  const tx = TEXT[locale];
+  const [events, setEvents] = useState<FinancialEventsDashboard | null>(null);
+  const [macro, setMacro] = useState<MacroSignalsPayload | null>(null);
+  const [etf, setEtf] = useState<EtfFlowPayload | null>(null);
+  const [stocks, setStocks] = useState<StockAnalysis[]>([]);
+  const [news, setNews] = useState<MarketNewsPayload | null>(null);
+  const [selectedStock, setSelectedStock] = useState("");
+  const [selectedNews, setSelectedNews] = useState("equities");
+  const [history, setHistory] = useState<StockAnalysis[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      setData(await api.getFinancialEvents(locale));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : t("financialEvents.error"));
-    } finally {
-      setLoading(false);
-    }
-  }
+  const load = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true);
+    setError("");
+    const results = await Promise.allSettled([api.getFinancialEvents(locale), api.getMacroSignals(), api.getEtfFlows(), api.getFeaturedStocks(6), api.getMarketNews(locale)]);
+    if (results[0].status === "fulfilled") setEvents(results[0].value);
+    if (results[1].status === "fulfilled") setMacro(results[1].value);
+    if (results[2].status === "fulfilled") setEtf(results[2].value);
+    if (results[3].status === "fulfilled") { const items = results[3].value.items; setStocks(items); setSelectedStock((current) => current || items.find((item: StockAnalysis) => item.available)?.symbol || ""); }
+    if (results[4].status === "fulfilled") setNews(results[4].value);
+    if (results.every((result) => result.status === "rejected")) setError(locale === "vi" ? "Không thể tải dữ liệu thị trường." : "Unable to load market intelligence.");
+    setLoading(false);
+  }, [locale]);
 
-  useEffect(() => { void load(); }, [locale]);
+  useEffect(() => { void load(); const timer = window.setInterval(() => void load(true), 60_000); return () => window.clearInterval(timer); }, [load]);
+  useEffect(() => { setShowHistory(false); setHistory([]); }, [selectedStock]);
+  const stock = stocks.find((item) => item.symbol === selectedStock) ?? stocks[0];
+  const newsSection = news?.sections.find((item) => item.category === selectedNews) ?? news?.sections[0];
+  const pagedNews = useMemo(() => newsSection?.items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) ?? [], [newsSection, page]);
+  async function toggleHistory() { const next = !showHistory; setShowHistory(next); if (next && selectedStock && !history.length) setHistory((await api.getStockHistory(selectedStock, 6)).history); }
 
-  const sectionTitles: Record<string, string> = {
-    "macro-signals": t("financialEvents.sections.macro-signals"),
-    "etf-flows": t("financialEvents.sections.etf-flows"),
-    "featured-stocks": t("financialEvents.sections.featured-stocks"),
-    "financial-news": t("financialEvents.sections.financial-news"),
-  };
-
-  return <div className="min-h-screen p-4 sm:p-6 lg:p-8">
-    <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6">
-      <header className="flex flex-col gap-4 border-b pb-6 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-positive/30 bg-positive/5 px-3 py-1 text-xs text-positive">
-            <ShieldCheck className="h-3.5 w-3.5" />{t("financialEvents.badge")}
-          </div>
-          <h1 className="text-3xl font-semibold tracking-tight">{t("financialEvents.title")}</h1>
-          <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{t("financialEvents.subtitle")}</p>
-        </div>
-        <button onClick={() => void load()} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-md border bg-card px-4 py-2 text-sm disabled:opacity-50">
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}{t("financialEvents.refresh")}
-        </button>
-      </header>
-
-      {error ? <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/5 p-4 text-sm text-danger"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div> : null}
-      {loading && !data ? <div className="flex h-56 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : null}
-
-      {data ? <>
-        <div><h2 className="text-xl font-semibold">{t("financialEvents.originalTitle")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("financialEvents.originalHint")}</p></div>
-        <EventGrid feeds={data.sections} title={(feed) => sectionTitles[feed.id] ?? feed.label} />
-
-        <div className="mt-2"><h2 className="text-xl font-semibold">{t("financialEvents.assetsTitle")}</h2><p className="mt-1 text-sm text-muted-foreground">{t("financialEvents.assetsHint")}</p></div>
-        <EventGrid feeds={data.assets} />
-
-        <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-4 text-sm"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" /><p>{t("financialEvents.disclaimer")}</p></div>
-      </> : null}
-    </div>
-  </div>;
+  return <div className="min-h-screen p-4 sm:p-6 lg:p-8"><div className="mx-auto flex max-w-[1500px] flex-col gap-6">
+    <header className="flex flex-col gap-4 border-b pb-6 lg:flex-row lg:items-end lg:justify-between"><div><h1 className="text-3xl font-semibold tracking-tight">{tx.title}</h1><p className="mt-2 max-w-4xl text-sm text-muted-foreground">{tx.subtitle}</p></div><button onClick={() => void load()} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-md border bg-card px-4 py-2 text-sm">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}{tx.refresh}</button></header>
+    {error && <div className="rounded-lg border border-danger/30 bg-danger/5 p-4 text-danger">{error}</div>}
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Status title={tx.macro} value={macro?.verdict ?? "—"} detail={macro ? `${macro.bullish_count}/${macro.total_count}` : "—"} /><Status title={tx.etf} value={etf?.summary.direction ?? "—"} detail={etf ? `${etf.summary.tracked_count ?? 0} ETF` : "—"} /><Status title={tx.news} value={`${news?.sections.length ?? 0}`} detail={locale === "vi" ? "nhóm tin" : "news lanes"} /><Status title={tx.stocks} value={`${stocks.filter((item) => item.available).length}`} detail={locale === "vi" ? "mã đã phân tích" : "symbols analyzed"} /></section>
+    <section className="grid gap-6 xl:grid-cols-2">
+      <Panel title={tx.macro}><div className="space-y-3">{macro?.signals.map((item) => <div key={item.id} className="rounded-lg border p-4"><div className="flex items-center justify-between gap-3"><span className="font-medium">{item.label}</span><span className={cn("font-semibold uppercase", tone(item.status))}>{item.value == null ? item.status : `${item.value > 0 ? "+" : ""}${item.value}${item.unit ?? ""}`}</span></div><p className="mt-2 text-xs leading-5 text-muted-foreground">{item.explanation}</p></div>)}{!macro?.signals.length && <Empty text={tx.noData} />}</div></Panel>
+      <Panel title={tx.etf}><div className="mb-4 flex items-center justify-between rounded-lg bg-muted/40 p-4"><span className="text-sm text-muted-foreground">{etf?.summary.summary ?? tx.noData}</span><span className={cn("font-semibold uppercase", tone(etf?.summary.direction))}>{etf?.summary.direction}</span></div><div className="space-y-2">{etf?.etfs.map((item) => <div key={item.symbol} className="grid grid-cols-[70px_1fr_1fr_1fr] items-center gap-2 rounded-lg border px-3 py-2 text-sm"><b>{item.symbol}</b><span className={tone(item.direction)}>{pct(item.price_change_pct)}</span><span>{item.volume_ratio.toFixed(2)}× vol</span><span className={tone(item.direction)}>{item.direction}</span></div>)}{!etf?.etfs.length && <Empty text={tx.noData} />}</div></Panel>
+    </section>
+    <Panel title={tx.stocks}><div className="mb-5 flex flex-wrap gap-2">{stocks.map((item) => <button key={item.symbol} onClick={() => setSelectedStock(item.symbol)} className={cn("rounded-full border px-3 py-1.5 text-sm", item.symbol === stock?.symbol && "border-primary bg-primary/10 text-primary")}>{item.symbol}</button>)}</div>{stock?.available ? <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]"><div><div className="flex flex-wrap items-baseline gap-3"><h3 className="text-2xl font-semibold">{stock.symbol}</h3><span className="text-xl">{money(stock.current_price)}</span><span className={cn("rounded-full bg-muted px-3 py-1 text-xs font-semibold uppercase", tone(stock.signal))}>{stock.signal} · {stock.signal_score}</span></div><p className="mt-3 text-sm leading-6 text-muted-foreground">{stock.summary}</p><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4"><Mini label="5D" value={pct(stock.analysis?.return_5d_pct)} /><Mini label="20D" value={pct(stock.analysis?.return_20d_pct)} /><Mini label={tx.support} value={money(stock.support_levels?.[0])} /><Mini label={tx.resistance} value={money(stock.resistance_levels?.[0])} /></div><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">{Object.entries(stock.analysis?.moving_averages ?? {}).map(([key, value]) => <Mini key={key} label={key.toUpperCase()} value={money(value ?? undefined)} />)}</div></div><div className="grid gap-4 sm:grid-cols-2"><FactorList title={tx.factors} items={stock.bullish_factors ?? []} positive /><FactorList title={tx.risks} items={stock.risk_factors ?? []} /></div></div> : <Empty text={tx.noData} />}{stock?.available && <div className="mt-5 border-t pt-4"><button onClick={() => void toggleHistory()} className="inline-flex items-center gap-2 text-sm text-primary"><History className="h-4 w-4" />{tx.history}</button>{showHistory && <div className="mt-3 grid gap-2 md:grid-cols-3">{history.map((item) => <div key={item.created_at} className="rounded-lg border p-3 text-xs"><div className="flex justify-between"><b className={tone(item.signal)}>{item.signal}</b><span>{item.created_at ? formatTime(item.created_at, locale) : ""}</span></div><p className="mt-2 text-muted-foreground">{item.summary}</p></div>)}</div>}</div>}<p className="mt-4 text-xs text-muted-foreground">{tx.delayed} · {stock?.price_source ?? "Yahoo Finance"}</p></Panel>
+    <Panel title={tx.news}><div className="mb-4 flex flex-wrap gap-2">{news?.sections.map((section) => <button key={section.category} onClick={() => { setSelectedNews(section.category); setPage(0); }} className={cn("rounded-full border px-3 py-1.5 text-sm", section.category === newsSection?.category && "border-primary bg-primary/10 text-primary")}>{section.label} ({section.items.length})</button>)}</div><p className="mb-4 text-sm text-muted-foreground">{newsSection?.description}</p><div className="divide-y rounded-lg border">{pagedNews.map((item, index) => <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="block p-4 hover:bg-muted/30"><div className="flex gap-3"><div className="min-w-0 flex-1"><h3 className="font-medium">{item.title}</h3><div className="mt-1 flex gap-3 text-xs text-muted-foreground"><span>{item.source}</span><span>{formatTime(item.published, locale)}</span><span>{item.overall_sentiment_label}</span></div>{item.summary && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.summary}</p>}</div><ExternalLink className="h-4 w-4 shrink-0" /></div></a>)}{!pagedNews.length && <Empty text={tx.noData} />}</div><div className="mt-3 flex justify-end gap-2"><button disabled={page === 0} onClick={() => setPage((value) => value - 1)} className="rounded border px-3 py-1 text-sm disabled:opacity-40">{tx.previous}</button><button disabled={!newsSection || (page + 1) * PAGE_SIZE >= newsSection.items.length} onClick={() => setPage((value) => value + 1)} className="rounded border px-3 py-1 text-sm disabled:opacity-40">{tx.next}</button></div></Panel>
+    <Panel title={tx.focus}>{events && <EventGrid feeds={[...events.sections, ...events.assets]} locale={locale} />}</Panel>
+    <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-4 text-sm"><AlertTriangle className="mt-0.5 h-4 w-4 text-warning" />{locale === "vi" ? "Thông tin chỉ phục vụ nghiên cứu và paper trading, không phải khuyến nghị đầu tư." : "Research and paper trading only; not investment advice."}</div>
+  </div></div>;
 }
 
-function EventGrid({ feeds, title }: { feeds: FinancialEventFeed[]; title?: (feed: FinancialEventFeed) => string }) {
-  const { t, i18n } = useTranslation();
-  const locale = i18n.resolvedLanguage?.toLowerCase().startsWith("vi") ? "vi-VN" : "en-US";
-  return <section className="grid gap-4 xl:grid-cols-2">
-    {feeds.map((feed) => <article key={feed.id} className="overflow-hidden rounded-xl border bg-card">
-      <div className="flex items-center justify-between border-b p-5"><h2 className="font-semibold">{title ? title(feed) : feed.label}</h2><span className="text-xs text-muted-foreground">{t("financialEvents.itemCount", { count: feed.items.length })}</span></div>
-      <div className="divide-y">
-        {feed.items.length ? feed.items.map((item, index) => <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="block p-5 transition-colors hover:bg-muted/30">
-          <div className="flex items-start justify-between gap-3"><div><div className="mb-1 flex flex-wrap gap-1.5">{item.source === "Forex Factory" ? <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">{t("financialEvents.prioritySource")}</span> : null}{item.country ? <span className="rounded-full bg-muted px-2 py-0.5 text-[10px]">{item.country}</span> : null}{item.impact ? <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] text-warning">{t(`financialEvents.impact.${item.impact.toLowerCase()}`, { defaultValue: item.impact })}</span> : null}</div><h3 className="font-medium leading-6">{item.title}</h3></div><ExternalLink className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" /></div>
-          <div className="mt-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground"><span>{item.source || t("financialEvents.unknownSource")}</span><span>{formatTime(item.published, locale)}</span></div>
-          {item.summary ? <p className="mt-2 text-xs text-muted-foreground">{item.summary}</p> : null}
-        </a>) : <div className="p-8 text-center text-sm text-muted-foreground">{feed.available ? t("financialEvents.noItems") : t("financialEvents.unavailable")}</div>}
-      </div>
-    </article>)}
-  </section>;
-}
+function Panel({ title, children }: { title: string; children: ReactNode }) { return <section className="rounded-xl border bg-card"><div className="border-b p-5"><h2 className="font-semibold">{title}</h2></div><div className="p-5">{children}</div></section>; }
+function Status({ title, value, detail }: { title: string; value: string; detail: string }) { return <div className="rounded-xl border bg-card p-4"><div className="text-xs text-muted-foreground">{title}</div><div className="mt-2 flex items-end justify-between"><span className={cn("text-lg font-semibold uppercase", tone(value))}>{value.split("_").join(" ")}</span><span className="text-xs text-muted-foreground">{detail}</span></div></div>; }
+function Mini({ label, value }: { label: string; value: string }) { return <div className="rounded-lg bg-muted/40 p-3"><div className="text-[10px] uppercase text-muted-foreground">{label}</div><div className="mt-1 font-medium">{value}</div></div>; }
+function FactorList({ title, items, positive = false }: { title: string; items: string[]; positive?: boolean }) { return <div><h4 className="mb-2 text-sm font-medium">{title}</h4><ul className="space-y-2">{items.map((item) => <li key={item} className="flex gap-2 text-xs text-muted-foreground">{positive ? <ArrowUpRight className="h-4 w-4 shrink-0 text-positive" /> : <ArrowDownRight className="h-4 w-4 shrink-0 text-danger" />}{item}</li>)}</ul></div>; }
+function Empty({ text }: { text: string }) { return <div className="p-8 text-center text-sm text-muted-foreground">{text}</div>; }
+function EventGrid({ feeds, locale }: { feeds: FinancialEventFeed[]; locale: string }) { return <div className="grid gap-4 xl:grid-cols-2">{feeds.map((feed) => <article key={feed.id} className="overflow-hidden rounded-lg border"><div className="flex justify-between border-b p-4"><b>{feed.label}</b><span className="text-xs text-muted-foreground">{feed.items.length}</span></div><div className="divide-y">{feed.items.slice(0, 6).map((item, index) => <a key={`${item.url}-${index}`} href={item.url} target="_blank" rel="noreferrer" className="block p-4 hover:bg-muted/30"><div className="flex items-start justify-between gap-2"><div><div className="mb-1 flex gap-1">{item.source === "Forex Factory" && <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] text-primary">Ưu tiên</span>}{item.country && <span className="rounded bg-muted px-2 py-0.5 text-[10px]">{item.country}</span>}</div><h3 className="text-sm font-medium">{item.title}</h3><p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.summary}</p><div className="mt-2 text-[11px] text-muted-foreground">{item.source} · {formatTime(item.published, locale)}</div></div><ExternalLink className="h-4 w-4 shrink-0" /></div></a>)}</div></article>)}</div>; }

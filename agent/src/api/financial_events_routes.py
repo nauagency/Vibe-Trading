@@ -17,6 +17,13 @@ from xml.etree import ElementTree
 from fastapi import Depends, FastAPI
 
 from src.api.security import require_auth
+from src.api.market_intel_core import (
+    build_etf_flows,
+    build_macro_signals,
+    featured_stocks,
+    stock_history,
+    stock_latest,
+)
 from src.config.paths import get_runtime_root
 
 _FEED_URL = "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
@@ -39,10 +46,30 @@ _LOCALES = {"en", "vi"}
 _LOCALIZATION_BATCH_SIZE = 20
 _TRANSLATE_URL = "https://translate.googleapis.com/translate_a/single"
 _TRANSLATION_CACHE_VERSION = "machine-preview-v4"
+_NEWS_CATEGORIES = {
+    "equities": ("Equities", "Stocks, ETFs, earnings and company developments.", "US stocks ETFs earnings market when:2d"),
+    "macro": ("Macro", "Economic policy, inflation, employment and rates.", "Federal Reserve inflation jobs interest rates economy when:2d"),
+    "crypto": ("Crypto", "Digital-asset headlines focused on BTC and ETH.", "Bitcoin Ethereum crypto market ETF when:2d"),
+    "commodities": ("Commodities", "Gold, energy and broader commodity markets.", "gold crude oil commodities OPEC market when:2d"),
+}
 
 
 def _clean(value: str | None) -> str:
     return " ".join(html.unescape(_TAG_RE.sub(" ", value or "")).split())
+
+
+def _news_sentiment(text: str) -> tuple[str, float]:
+    normalized = text.lower()
+    positive = sum(word in normalized for word in ("gain", "rise", "rally", "growth", "beat", "bull", "surge"))
+    negative = sum(word in normalized for word in ("fall", "drop", "loss", "risk", "miss", "bear", "slump"))
+    score = max(-1.0, min(1.0, (positive - negative) / max(positive + negative, 1)))
+    return ("Bullish" if score > .15 else "Bearish" if score < -.15 else "Neutral", score)
+
+
+def _news_symbols(text: str) -> list[str]:
+    normalized = text.upper()
+    aliases = {"BTC": ("BITCOIN", "BTC"), "ETH": ("ETHEREUM", "ETH"), "XAU": ("GOLD", "XAU"), "USOIL": ("OIL", "WTI", "OPEC"), "EURUSD": ("EURUSD", "EURO", "ECB")}
+    return [symbol for symbol, names in aliases.items() if any(name in normalized for name in names)]
 
 
 def _article_preview(title: str, source: str, description: str) -> str:
@@ -299,3 +326,44 @@ def register_financial_events_routes(app: FastAPI) -> None:
             "total_items": sum(len(feed["items"]) for feed in [*sections, *assets]),
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
+
+    @app.get("/api/market-intel/macro-signals", dependencies=[Depends(require_auth)])
+    async def market_intel_macro_signals():
+        return await asyncio.to_thread(build_macro_signals)
+
+    @app.get("/api/market-intel/etf-flows", dependencies=[Depends(require_auth)])
+    async def market_intel_etf_flows():
+        return await asyncio.to_thread(build_etf_flows)
+
+    @app.get("/api/market-intel/news", dependencies=[Depends(require_auth)])
+    async def market_intel_news(category: str | None = None, limit: int = 5, locale: str = "en"):
+        selected = [category] if category in _NEWS_CATEGORIES else list(_NEWS_CATEGORIES)
+        safe_limit = max(1, min(limit, 12))
+        feeds = await asyncio.gather(*(
+            _feed(key, label, query) for key, (label, _description, query) in _NEWS_CATEGORIES.items() if key in selected
+        ))
+        localized = await asyncio.to_thread(_localize_feeds, feeds, locale if locale in _LOCALES else "en")
+        sections = []
+        for feed in feeds:
+            label, description, _query = _NEWS_CATEGORIES[feed["id"]]
+            items = []
+            for item in feed["items"][:safe_limit]:
+                sentiment, score = _news_sentiment(f"{item['title']} {item.get('summary', '')}")
+                symbols = _news_symbols(f"{item['title']} {item.get('summary', '')}")
+                items.append({**item, "overall_sentiment_label": sentiment, "overall_sentiment_score": score, "ticker_sentiment": [{"ticker": symbol, "ticker_sentiment_label": sentiment, "ticker_sentiment_score": score} for symbol in symbols]})
+            activity = "elevated" if len(items) >= 10 else "active" if len(items) >= 5 else "calm" if items else "quiet"
+            created_at = datetime.now(timezone.utc).isoformat()
+            sections.append({"category": feed["id"], "label": label, "description": description, "items": items, "summary": {"category": feed["id"], "item_count": len(items), "activity_level": activity, "top_headline": items[0]["title"] if items else None, "latest_item_time": items[0]["published"] if items else None}, "created_at": created_at, "available": feed["available"]})
+        return {"available": any(section["available"] for section in sections), "sections": sections, "localized": localized, "created_at": datetime.now(timezone.utc).isoformat()}
+
+    @app.get("/api/market-intel/stocks/featured", dependencies=[Depends(require_auth)])
+    async def market_intel_featured_stocks(limit: int = 6):
+        return await asyncio.to_thread(featured_stocks, max(1, min(limit, 12)))
+
+    @app.get("/api/market-intel/stocks/{symbol}/latest", dependencies=[Depends(require_auth)])
+    async def market_intel_stock_latest(symbol: str):
+        return await asyncio.to_thread(stock_latest, symbol)
+
+    @app.get("/api/market-intel/stocks/{symbol}/history", dependencies=[Depends(require_auth)])
+    async def market_intel_stock_history(symbol: str, limit: int = 10):
+        return await asyncio.to_thread(stock_history, symbol, max(1, min(limit, 30)))
