@@ -15,15 +15,10 @@ function hslToHex(hsl: string): string {
   return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-function isChinese(): boolean {
-  return (document.documentElement.lang || navigator.language || "").startsWith("zh");
-}
-
 let _cache: ReturnType<typeof buildTheme> | null = null;
 let _cacheKey = "";
 
 function buildTheme() {
-  const cn = isChinese();
   const isDark = document.documentElement.classList.contains("dark");
 
   const successHex = hslToHex(css("--success")) || "#22c55e";
@@ -34,9 +29,8 @@ function buildTheme() {
   const textHex = hslToHex(css("--chart-text")) || "#6b7280";
   const axisHex = hslToHex(css("--chart-axis")) || "#374151";
 
-  // Locale-aware candlestick colors: China = red up / green down
-  const upHex = cn ? dangerHex : successHex;
-  const downHex = cn ? successHex : dangerHex;
+  const upHex = successHex;
+  const downHex = dangerHex;
 
   return {
     gridColor: gridHex,

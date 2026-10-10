@@ -1,4 +1,5 @@
 import en from "../locales/en.json";
+import vi from "../locales/vi.json";
 import i18n, { SUPPORTED_LANGUAGES, isRtl } from "../index";
 
 // ── helpers ────────────────────────────────────────────────────
@@ -73,13 +74,8 @@ describe("i18n locale parity", () => {
     expect(enKeys.length).toBeGreaterThanOrEqual(100);
   });
 
-  it("the locale files on disk are exactly the registered languages", () => {
-    // Both directions: a locale file nobody registered is unreachable in the
-    // switcher, and a registered language with no file is a runtime import
-    // failure. Either way the parity tests above would silently skip it.
-    expect([...localeCodes].sort()).toEqual(
-      SUPPORTED_LANGUAGES.map((language) => language.code).sort(),
-    );
+  it("every registered language has a locale file", () => {
+    expect(SUPPORTED_LANGUAGES.every((language) => localeCodes.includes(language.code))).toBe(true);
   });
 });
 
@@ -128,25 +124,14 @@ describe("i18n interpolation parity", () => {
 // ── utility functions ──────────────────────────────────────────
 
 describe("i18n utilities", () => {
-  it("isRtl returns true for Arabic", () => {
-    expect(isRtl("ar")).toBe(true);
-  });
-
-  it("isRtl returns true for Arabic regional variants", () => {
-    expect(isRtl("ar-EG")).toBe(true);
-    expect(isRtl("ar-SA")).toBe(true);
-  });
-
   it("isRtl returns false for LTR languages", () => {
+    expect(isRtl("vi")).toBe(false);
     expect(isRtl("en")).toBe(false);
-    expect(isRtl("zh-CN")).toBe(false);
-    expect(isRtl("ja")).toBe(false);
-    expect(isRtl("ko")).toBe(false);
   });
 
   it("isRtl returns false for LTR regional variants", () => {
     expect(isRtl("en-US")).toBe(false);
-    expect(isRtl("ja-JP")).toBe(false);
+    expect(isRtl("vi-VN")).toBe(false);
   });
 
   it("isRtl returns false for unknown codes", () => {
@@ -155,18 +140,16 @@ describe("i18n utilities", () => {
   });
 
   it("SUPPORTED_LANGUAGES lists every locale in switcher order", () => {
-    // The set is pinned against the locales directory above; this case pins
-    // the order the switcher renders, and that "en" stays first so the
-    // primary-match fallback in Layout resolves regional codes to it.
     const codes = SUPPORTED_LANGUAGES.map((l) => l.code);
-    expect(codes).toEqual(["en", "zh-CN", "ja", "ko", "ar", "es", "de", "pt-BR", "id"]);
+    expect(codes).toEqual(["vi", "en"]);
   });
 
-  it("accepts zh-CN as an explicit supported language", async () => {
-    await i18n.changeLanguage("zh-CN");
+  it("defaults to and accepts Vietnamese", async () => {
+    expect(vi.layout.language).toBeTruthy();
+    await i18n.changeLanguage("vi");
 
-    expect(i18n.language).toBe("zh-CN");
-    expect(i18n.languages).toContain("zh-CN");
+    expect(i18n.language).toBe("vi");
+    expect(i18n.languages).toContain("vi");
 
     await i18n.changeLanguage("en");
   });

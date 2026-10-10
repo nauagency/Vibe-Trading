@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { RunDetail } from "../RunDetail";
 import type { RunData } from "@/lib/api";
+import i18n from "@/i18n";
 
 const apiMock = vi.hoisted(() => ({
   getRun: vi.fn(),
@@ -45,7 +46,8 @@ function renderRunDetail(path = "/runs/old") {
 }
 
 describe("RunDetail page", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await i18n.changeLanguage("en");
     apiMock.getRun.mockReset();
     apiMock.getRunCode.mockReset();
     apiMock.getRunFactor.mockReset();
@@ -67,8 +69,8 @@ describe("RunDetail page", () => {
     renderRunDetail("/runs/20260811_110751_32_d951c8?view=dashboard");
 
     // The strategy name is report chrome derived from the prompt, so it follows
-    // the UI language, not the prompt's. A Chinese prompt under an English UI
-    // must not leak a Chinese title into an otherwise English report.
+    // the UI language, not the prompt's. A non-English prompt under an English
+    // UI must not leak its source language into an otherwise English report.
     expect(
       await screen.findByRole("heading", { name: "000001.SZ · 20/50-day moving-average crossover" })
     ).toBeInTheDocument();
@@ -86,12 +88,12 @@ describe("RunDetail page", () => {
     apiMock.getRunCode.mockResolvedValueOnce({});
     const previous = i18n.language;
     await act(async () => {
-      await i18n.changeLanguage("zh-CN");
+      await i18n.changeLanguage("vi");
     });
     try {
       renderRunDetail("/runs/zh-run?view=dashboard");
       expect(
-        await screen.findByRole("heading", { name: "000001.SZ · 20/50 日均线交叉策略" })
+        await screen.findByRole("heading", { name: "000001.SZ · Giao cắt trung bình động 20/50 ngày" })
       ).toBeInTheDocument();
     } finally {
       await act(async () => {
