@@ -3,6 +3,7 @@ import { Container, getContainer } from "@cloudflare/containers";
 interface Env {
   VIBE_CONTAINER: DurableObjectNamespace<VibeTradingContainer>;
   API_AUTH_KEY: string;
+  OPENAI_API_KEY: string;
   SITE_USERNAME: string;
   SITE_PASSWORD: string;
   SITE_SESSION_SECRET: string;
@@ -49,7 +50,7 @@ function loginPage(next: string, error = ""): Response {
 export class VibeTradingContainer extends Container<Env> {
   defaultPort = 8899;
   sleepAfter = "30m";
-  envVars = { API_AUTH_KEY: this.env.API_AUTH_KEY, CORS_ORIGINS: "https://vibetrading.nauagency.asia", ENABLE_SESSION_RUNTIME: "true", VIBE_TRADING_ENABLE_SCHEDULER: "0", VIBE_TRADING_ENABLE_SHELL_TOOLS: "0", VIBE_TRADING_CSP_REPORT_ONLY: "0" };
+  envVars = { API_AUTH_KEY: this.env.API_AUTH_KEY, OPENAI_API_KEY: this.env.OPENAI_API_KEY, LANGCHAIN_PROVIDER: "openai", LANGCHAIN_MODEL_NAME: "gpt-5.1", CORS_ORIGINS: "https://vibetrading.nauagency.asia", ENABLE_SESSION_RUNTIME: "true", VIBE_TRADING_ENABLE_SCHEDULER: "0", VIBE_TRADING_ENABLE_SHELL_TOOLS: "0", VIBE_TRADING_CSP_REPORT_ONLY: "0" };
 }
 
 export default {

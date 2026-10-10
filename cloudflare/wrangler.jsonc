@@ -33,7 +33,7 @@
     }
   ],
   "secrets": {
-    "required": ["API_AUTH_KEY", "SITE_USERNAME", "SITE_PASSWORD", "SITE_SESSION_SECRET"]
+    "required": ["API_AUTH_KEY", "OPENAI_API_KEY", "SITE_USERNAME", "SITE_PASSWORD", "SITE_SESSION_SECRET"]
   },
   "observability": {
     "enabled": true
