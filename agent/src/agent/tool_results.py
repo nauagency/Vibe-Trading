@@ -234,10 +234,6 @@ def _archive_backtest_result(
         logger.warning("Refusing to archive backtest output from outside the allowed run roots")
         return False
     if source == target:
-        if (source / "artifacts" / "metrics.csv").is_file():
-            from src.integrations.ai_trader import publish_backtest_run
-
-            publish_backtest_run(source)
         return False
     if not (source / "artifacts" / "metrics.csv").is_file():
         return False
@@ -278,9 +274,4 @@ def _archive_backtest_result(
         source_file = source / filename
         if source_file.is_file():
             shutil.copy2(source_file, target / filename)
-    archived = (target / "artifacts" / "metrics.csv").is_file()
-    if archived:
-        from src.integrations.ai_trader import publish_backtest_run
-
-        publish_backtest_run(target)
-    return archived
+    return (target / "artifacts" / "metrics.csv").is_file()

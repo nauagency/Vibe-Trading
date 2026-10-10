@@ -560,7 +560,7 @@ export function Settings() {
         </section>
       </form>
 
-      <form onSubmit={submitDataSources} className="rounded-lg border bg-card p-5 shadow-sm">
+      <form id="data-sources" onSubmit={submitDataSources} className="scroll-mt-6 rounded-lg border bg-card p-5 shadow-sm">
         <div className="mb-5 space-y-1">
           <div className="flex items-center gap-2">
             <Database className="h-4 w-4 text-primary" />

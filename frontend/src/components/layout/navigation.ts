@@ -1,9 +1,12 @@
-import { Activity, BarChart3, Bot, CalendarClock, CandlestickChart, FileText, Layers, Settings, WalletCards } from "lucide-react";
+import { Activity, BarChart3, Bot, CalendarClock, CandlestickChart, FileText, FlaskConical, Layers, Map, Newspaper, Settings, WalletCards } from "lucide-react";
 
 export const NAVIGATION_GROUPS = [
   { id: "research", items: [
+    { id: "roadmap", to: "/roadmap", icon: Map },
     { id: "agent", to: "/", icon: Bot },
     { id: "reports", to: "/reports", icon: FileText },
+    { id: "financialEvents", to: "/financial-events", icon: Newspaper },
+    { id: "paperTrading", to: "/paper-trading", icon: FlaskConical },
     { id: "portfolio", to: "/portfolio", icon: WalletCards },
   ] },
   { id: "analysis", items: [

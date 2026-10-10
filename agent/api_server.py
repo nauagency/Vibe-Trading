@@ -256,6 +256,14 @@ register_portfolio_routes(app)
 from src.api.connection_routes import register_connection_routes  # noqa: E402
 register_connection_routes(app)
 
+# --- Native Vibe paper workspace (read-only, no live orders) ---
+from src.api.paper_trading_routes import register_paper_trading_routes  # noqa: E402
+register_paper_trading_routes(app)
+
+# --- Native market-moving financial events (read-only) ---
+from src.api.financial_events_routes import register_financial_events_routes  # noqa: E402
+register_financial_events_routes(app)
+
 from src.api.live_routes import (  # noqa: F401, E402
     CommitMandateRequest,
     LiveHaltRequest,

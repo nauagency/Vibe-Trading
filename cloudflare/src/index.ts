@@ -7,7 +7,6 @@ interface Env {
   SITE_USERNAME: string;
   SITE_PASSWORD: string;
   SITE_SESSION_SECRET: string;
-  VIBE_BRIDGE_SECRET: string;
 }
 
 const COOKIE_NAME = "nau_vibe_auth";
@@ -17,7 +16,7 @@ const COOKIE_NAME = "nau_vibe_auth";
 const CONTAINER_API_AUTH_KEY = "nauagency-worker-proxy-v1";
 
 function containerEnv(env: Env): Record<string, string> {
-  return { API_AUTH_KEY: CONTAINER_API_AUTH_KEY, OPENAI_API_KEY: env.OPENAI_API_KEY, VIBE_BRIDGE_SECRET: env.VIBE_BRIDGE_SECRET, AI_TRADER_BRIDGE_URL: "https://aitrader.nauagency.asia", VIBE_PUBLIC_URL: "https://vibetrading.nauagency.asia", LANGCHAIN_PROVIDER: "openai", LANGCHAIN_MODEL_NAME: "gpt-5.5", CORS_ORIGINS: "https://vibetrading.nauagency.asia", ENABLE_SESSION_RUNTIME: "true", VIBE_TRADING_ENABLE_SCHEDULER: "0", VIBE_TRADING_ENABLE_SHELL_TOOLS: "0", VIBE_TRADING_CSP_REPORT_ONLY: "0" };
+  return { API_AUTH_KEY: CONTAINER_API_AUTH_KEY, OPENAI_API_KEY: env.OPENAI_API_KEY, VIBE_PUBLIC_URL: "https://vibetrading.nauagency.asia", LANGCHAIN_PROVIDER: "openai", LANGCHAIN_MODEL_NAME: "gpt-5.5", CORS_ORIGINS: "https://vibetrading.nauagency.asia", ENABLE_SESSION_RUNTIME: "true", VIBE_TRADING_ENABLE_SCHEDULER: "0", VIBE_TRADING_ENABLE_SHELL_TOOLS: "0", VIBE_TRADING_CSP_REPORT_ONLY: "0" };
 }
 
 function sameText(left: string, right: string): boolean {

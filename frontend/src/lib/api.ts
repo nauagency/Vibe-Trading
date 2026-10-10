@@ -11,6 +11,51 @@ const configuredTimeout = Number(import.meta.env.VITE_API_TIMEOUT_MS);
 const REQUEST_TIMEOUT_MS = Number.isFinite(configuredTimeout) && configuredTimeout > 0
   ? configuredTimeout : 120_000;
 const METADATA_TIMEOUT_MS = Math.min(REQUEST_TIMEOUT_MS, 15_000);
+const SESSION_INDEX_CACHE_KEY = "vibe-trading:session-index:v1";
+const sessionMessagesCacheKey = (sid: string) => `vibe-trading:session-messages:v1:${sid}`;
+
+function readBrowserCache<T>(key: string): T | null {
+  try {
+    const value = window.localStorage.getItem(key);
+    return value ? JSON.parse(value) as T : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeBrowserCache(key: string, value: unknown): void {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // The server remains authoritative when storage is unavailable/full.
+  }
+}
+
+function mergeAndCacheSessions(remote: SessionItem[]): SessionItem[] {
+  const cached = readBrowserCache<SessionItem[]>(SESSION_INDEX_CACHE_KEY) ?? [];
+  const remoteIds = new Set(remote.map((item) => item.session_id));
+  const archived = cached
+    .filter((item) => !remoteIds.has(item.session_id))
+    .map((item) => ({ ...item, archived: true }));
+  const merged = [...remote.map((item) => ({ ...item, archived: false })), ...archived]
+    .sort((a, b) => String(b.updated_at ?? b.created_at ?? "").localeCompare(String(a.updated_at ?? a.created_at ?? "")));
+  writeBrowserCache(SESSION_INDEX_CACHE_KEY, merged);
+  return merged;
+}
+
+function updateCachedSession(session: SessionItem): void {
+  const cached = readBrowserCache<SessionItem[]>(SESSION_INDEX_CACHE_KEY) ?? [];
+  writeBrowserCache(SESSION_INDEX_CACHE_KEY, [
+    { ...session, archived: false },
+    ...cached.filter((item) => item.session_id !== session.session_id),
+  ]);
+}
+
+function removeCachedSession(sid: string): void {
+  const cached = readBrowserCache<SessionItem[]>(SESSION_INDEX_CACHE_KEY) ?? [];
+  writeBrowserCache(SESSION_INDEX_CACHE_KEY, cached.filter((item) => item.session_id !== sid));
+  try { window.localStorage.removeItem(sessionMessagesCacheKey(sid)); } catch { /* no-op */ }
+}
 
 /** Bound both the connection and body read; never automatically replay writes. */
 async function performRequest<T>(
@@ -68,6 +113,74 @@ export class ApiError extends Error {
     this.status = status;
     this.code = code;
   }
+}
+
+export interface PaperTradingPosition {
+  symbol: string;
+  market: string;
+  side: "long" | "short" | string;
+  quantity: number;
+  entry_price: number;
+  current_price: number | null;
+  unrealized_pnl: number | null;
+  opened_at: string;
+}
+
+export interface PaperTradingStrategy {
+  signal_id: number;
+  market: string;
+  title: string;
+  content: string;
+  symbols: string[];
+  tags: string[];
+  source: "vibe-trading" | "ai-trader" | string;
+  created_at: string;
+}
+
+export interface PaperTradingDashboard {
+  mode: "paper";
+  live_trading_enabled: false;
+  account: {
+    name: string;
+    email: string | null;
+    points: number;
+    cash: number;
+    equity: number;
+    unrealized_pnl: number;
+  };
+  positions: PaperTradingPosition[];
+  strategies: PaperTradingStrategy[];
+  capabilities: {
+    research_import: boolean;
+    paper_positions: boolean;
+    live_orders: false;
+    supported_execution_markets: string[];
+    research_only_markets: string[];
+  };
+  updated_at: string;
+}
+
+export interface FinancialEventItem {
+  title: string;
+  url: string;
+  source: string;
+  published: string;
+  summary: string;
+}
+
+export interface FinancialEventsDashboard {
+  mode: "native";
+  read_only: true;
+  provider: string;
+  lanes: Array<{
+    id: string;
+    label: string;
+    available: boolean;
+    items: FinancialEventItem[];
+    error?: string;
+  }>;
+  total_items: number;
+  updated_at: string;
 }
 
 const AUTH_REQUIRED_MESSAGE_KEY = "agent.authRequired";
@@ -427,6 +540,8 @@ function appendQueryParam(url: string, key: string, value: string): string {
 }
 
 export const api = {
+  getPaperTrading: () => request<PaperTradingDashboard>("/api/paper-trading", undefined, METADATA_TIMEOUT_MS),
+  getFinancialEvents: () => request<FinancialEventsDashboard>("/api/financial-events", undefined, METADATA_TIMEOUT_MS),
   uploadFile,
   getCorrelationAnalysis: (codes: string, days: number, method: "pearson" | "spearman", includeRegime: boolean, signal?: AbortSignal) =>
     request<CorrelationAnalysisResponse>(`/correlation/analysis?${new URLSearchParams({ codes, days: String(days), method, include_regime: String(includeRegime) })}`, { signal }),
@@ -498,10 +613,31 @@ export const api = {
   getRunFactor: (id: string) => request<FactorReportPayload>(`/runs/${id}/factor`),
   getRunAttribution: (id: string) => request<AttributionResponse>(`/runs/${encodeURIComponent(id)}/attribution`),
   getRunPine: (id: string) => request<PineScriptResult>(`/runs/${id}/pine`),
-  listSessions: () => request<SessionItem[]>("/sessions", undefined, METADATA_TIMEOUT_MS),
-  createSession: (title?: string) => request<SessionItem>("/sessions", { method: "POST", body: JSON.stringify({ title: title || "" }) }),
-  deleteSession: (sid: string) => request<{ status: string }>(`/sessions/${sid}`, { method: "DELETE" }),
-  renameSession: (sid: string, title: string) => request<{ status: string }>(`/sessions/${sid}`, { method: "PATCH", body: JSON.stringify({ title }) }),
+  listSessions: async () => mergeAndCacheSessions(await request<SessionItem[]>("/sessions", undefined, METADATA_TIMEOUT_MS)),
+  createSession: async (title?: string) => {
+    const session = await request<SessionItem>("/sessions", { method: "POST", body: JSON.stringify({ title: title || "" }) });
+    updateCachedSession(session);
+    return session;
+  },
+  deleteSession: async (sid: string) => {
+    try {
+      const result = await request<{ status: string }>(`/sessions/${sid}`, { method: "DELETE" });
+      removeCachedSession(sid);
+      return result;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404 && readBrowserCache<MessageItem[]>(sessionMessagesCacheKey(sid))) {
+        removeCachedSession(sid);
+        return { status: "deleted-local-archive" };
+      }
+      throw error;
+    }
+  },
+  renameSession: async (sid: string, title: string) => {
+    const result = await request<{ status: string }>(`/sessions/${sid}`, { method: "PATCH", body: JSON.stringify({ title }) });
+    const cached = readBrowserCache<SessionItem[]>(SESSION_INDEX_CACHE_KEY) ?? [];
+    writeBrowserCache(SESSION_INDEX_CACHE_KEY, cached.map((item) => item.session_id === sid ? { ...item, title } : item));
+    return result;
+  },
   // Codex-style LLM summary title from the first exchange; backend refuses to
   // overwrite a manual rename, so this is safe to fire-and-forget.
   autoTitleSession: (sid: string) => request<{ status: string; title: string }>(`/sessions/${sid}/title/auto`, { method: "POST" }),
@@ -529,7 +665,17 @@ export const api = {
     ),
   sendMessage: (sid: string, content: string) => request<{ message_id: string; attempt_id: string }>(`/sessions/${sid}/messages`, { method: "POST", body: JSON.stringify({ content }) }),
   cancelSession: (sid: string) => request<{ status: string }>(`/sessions/${sid}/cancel`, { method: "POST" }),
-  getSessionMessages: (sid: string) => request<MessageItem[]>(`/sessions/${sid}/messages`),
+  getSessionMessages: async (sid: string) => {
+    try {
+      const messages = await request<MessageItem[]>(`/sessions/${sid}/messages`);
+      writeBrowserCache(sessionMessagesCacheKey(sid), messages);
+      return messages;
+    } catch (error) {
+      const cached = readBrowserCache<MessageItem[]>(sessionMessagesCacheKey(sid));
+      if (cached) return cached;
+      throw error;
+    }
+  },
   createGoal: (sid: string, body: CreateGoalRequest) =>
     request<GoalSnapshot>(`/sessions/${sid}/goal`, {
       method: "POST",
@@ -1447,6 +1593,8 @@ export interface SessionItem {
   created_at?: string;
   updated_at?: string;
   last_attempt_id?: string;
+  /** Browser-local, read-only fallback retained when a container is replaced. */
+  archived?: boolean;
 }
 
 // --- Goal types ---

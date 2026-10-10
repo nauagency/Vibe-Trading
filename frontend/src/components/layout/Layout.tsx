@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useSearchParams } from "react-router";
-import { Check, ChevronDown, Languages, Moon, Sun, Plus, Trash2, Pencil, MessageSquare, ChevronsLeft, ChevronsRight, Loader2, X } from "lucide-react";
+import { Archive, Check, ChevronDown, Languages, LogOut, Moon, Sun, Plus, Trash2, Pencil, MessageSquare, ChevronsLeft, ChevronsRight, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDarkMode } from "@/hooks/useDarkMode";
 import { api, type SessionItem } from "@/lib/api";
@@ -257,10 +257,12 @@ export function Layout() {
                             ? "border-s-primary bg-primary/10 text-primary font-medium"
                             : "border-s-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
                         )}
-                        title={s.title || s.session_id}
+                        title={s.archived ? `${s.title || s.session_id} · ${t("layout.browserArchive")}` : (s.title || s.session_id)}
                       >
                         <span className="flex min-w-0 items-center gap-1.5">
-                          {streamingSessionId === s.session_id ? (
+                          {s.archived ? (
+                            <Archive className="h-3 w-3 shrink-0 text-muted-foreground" aria-label={t("layout.browserArchive")} />
+                          ) : streamingSessionId === s.session_id ? (
                             <Loader2 className="h-3 w-3 shrink-0 animate-spin text-primary" />
                           ) : (
                             // Transparent placeholder keeps titles aligned with
@@ -281,13 +283,13 @@ export function Layout() {
                       </div>
                     ) : !isRenaming ? (
                       <div className="absolute right-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 flex items-center gap-0.5 transition-opacity">
-                        <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setRenameTarget(s.session_id); setRenameValue(s.title || ""); }}
-                          className="p-1.5 text-muted-foreground hover:text-foreground rounded"
-                          title={t('layout.rename')}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </button>
+                        {!s.archived && <button
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setRenameTarget(s.session_id); setRenameValue(s.title || ""); }}
+                            className="p-1.5 text-muted-foreground hover:text-foreground rounded"
+                            title={t('layout.rename')}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>}
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteTarget(s.session_id); }}
                           className="p-1.5 text-muted-foreground hover:text-danger rounded"
@@ -318,6 +320,7 @@ export function Layout() {
                 <ChevronsRight className="h-3.5 w-3.5" />
               </button>
               <LanguageSwitcher compact />
+              <a href="/__nau/logout" className="p-1.5 text-muted-foreground hover:text-danger rounded transition-colors" title={t("layout.logout")} aria-label={t("layout.logout")}><LogOut className="h-3.5 w-3.5" /></a>
             </>
           ) : (
             <>
@@ -341,6 +344,7 @@ export function Layout() {
               </div>
               <div className="flex flex-col gap-1 max-md:items-center">
                 <LanguageSwitcher />
+                <a href="/__nau/logout" className="flex items-center gap-1.5 p-1.5 text-xs text-muted-foreground hover:text-danger transition-colors"><LogOut className="h-3.5 w-3.5" /><span className="max-md:hidden">{t("layout.logout")}</span></a>
                 {/* About is marketing, not a work surface — it lives here by
                     the version stamp instead of in the primary nav. */}
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 max-md:hidden">
